@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinSight.ai
 
-## Getting Started
+A production-focused financial intelligence template built with Next.js App Router, TypeScript, Tailwind CSS, Firebase, Recharts, Zod, Framer Motion, Lucide, and OpenAI.
 
-First, run the development server:
+## Safety architecture
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+FinSight separates language intelligence from financial computation:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `lib/math-engine.ts` is the only projection and anomaly calculation layer.
+- `lib/ai-engine.ts` only parses intent and narrates pre-calculated facts.
+- Every AI scenario and fact passes through strict Zod validation.
+- Narrative grounding rejects numbers not present in the source fact.
+- OpenAI credentials remain server-only behind route handlers.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This is a software template, not financial advice.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Start locally
 
-## Learn More
+1. Copy `.env.example` to `.env.local`.
+2. Add OpenAI and Firebase credentials.
+3. Run `npm run dev`.
+4. Open `http://localhost:3000`.
 
-To learn more about Next.js, take a look at the following resources:
+Without Firebase credentials, the navbar clearly reports local demo mode. The initial dashboard and deterministic charts still work. OpenAI credentials are required only when a user submits a new natural-language scenario.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Manual editing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The main demo workspace is intentionally centralized in:
 
-## Deploy on Vercel
+- `lib/dashboard-data.ts`: copy, balance inputs, recurring expenses, anomaly baselines, and example questions.
+- `app/globals.css`: semantic OKLCH color tokens, dark mode, radii, and elevation.
+- `types/financial.ts`: domain contracts.
+- `components/dashboard/`: independent dashboard sections.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Change values in `lib/dashboard-data.ts`; the cards, alerts, runway, and charts update from those inputs.
