@@ -9,6 +9,11 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Generated caches and reports
+.tamagui/
+coverage/
+.eslintcache
+
 # Native
 .kotlin/
 *.orig.*
@@ -31,7 +36,13 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
+
+# Firebase native service files (download per environment)
+google-services.json
+GoogleService-Info.plist
 
 # typescript
 *.tsbuildinfo
