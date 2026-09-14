@@ -23,6 +23,60 @@ service cloud.firestore {
         && !value.matches('.*([Uu][Tt][Rr]|[Rr][Rr][Nn]|[Rr][Ee][Ff][Ee][Rr][Ee][Nn][Cc][Ee]|[Rr][Ee][Ff]|[Tt][Rr][Aa][Nn][Ss][Aa][Cc][Tt][Ii][Oo][Nn]|[Tt][Xx][Nn]|[Oo][Rr][Dd][Ee][Rr]|[Mm][Aa][Nn][Dd][Aa][Tt][Ee])( *([Nn][Uu][Mm][Bb][Ee][Rr]|[Nn][Oo][.]?|[Ii][Dd]|#))?[ :=-]*[A-Za-z0-9][A-Za-z0-9._/-]{5,}.*');
     }
 
+    function hasValidMerchantKey(data) {
+      return !data.keys().hasAny(['merchantKey'])
+        || data.merchantKey in [
+          'zomato',
+          'swiggy',
+          'instamart',
+          'uber',
+          'ola',
+          'rapido',
+          'amazonpay',
+          'amazon',
+          'flipkart',
+          'myntra',
+          'ajio',
+          'nykaa',
+          'tatacliq',
+          'netflix',
+          'spotify',
+          'hotstar',
+          'primevideo',
+          'bookmyshow',
+          'pvr',
+          'blinkit',
+          'zepto',
+          'bigbasket',
+          'jiomart',
+          'dmart',
+          'relianceretail',
+          'apollopharmacy',
+          'starbucks',
+          'mcdonalds',
+          'kfc',
+          'dominos',
+          'irctc',
+          'makemytrip',
+          'goibibo',
+          'cleartrip',
+          'jio',
+          'airtel',
+          'cred',
+          'paytm',
+          'googlepay',
+          'phonepe',
+          'google',
+          'apple'
+        ];
+    }
+
+    function isMerchantKeyEnrichment(previousData, nextData) {
+      return !previousData.keys().hasAny(['merchantKey'])
+        && nextData.keys().hasAny(['merchantKey'])
+        && nextData.diff(previousData).affectedKeys().hasOnly(['merchantKey']);
+    }
+
     function isValidSanitizedTransaction(data, transactionId) {
       return data.keys().hasAll([
           'date',
@@ -36,8 +90,10 @@ service cloud.firestore {
           'amount',
           'type',
           'sanitizedDescription',
-          'category'
+          'category',
+          'merchantKey'
         ])
+        && hasValidMerchantKey(data)
         && transactionId.matches('^csv_[a-f0-9]{16}$')
         && data.date is string
         && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
@@ -136,6 +192,7 @@ service cloud.firestore {
             // A current valid record stays immutable; an incompatible legacy
             // record may be replaced once by the strict privacy-safe schema.
             || !isValidSanitizedTransaction(resource.data, transactionId)
+            || isMerchantKeyEnrichment(resource.data, request.resource.data)
           );
         allow delete: if false;
       }
@@ -167,6 +224,7 @@ service cloud.firestore {
               request.resource.data == resource.data
               // Match aggregate migration behavior for legacy statement rows.
               || !isValidSanitizedTransaction(resource.data, transactionId)
+              || isMerchantKeyEnrichment(resource.data, request.resource.data)
             );
           allow delete: if false;
         }

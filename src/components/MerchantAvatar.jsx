@@ -1,5 +1,5 @@
-import React, { memo, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import React, { memo, useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import {
   Car,
   CreditCard,
@@ -9,62 +9,18 @@ import {
   Zap,
 } from "@tamagui/lucide-icons";
 
-export const BRAND_DOMAINS = Object.freeze({
-  zomato: "zomato.com",
-  swiggy: "swiggy.com",
-  instamart: "swiggy.com",
-  uber: "uber.com",
-  ola: "olacabs.com",
-  rapido: "rapido.bike",
-  amazonpay: "amazon.in",
-  amazon: "amazon.in",
-  flipkart: "flipkart.com",
-  myntra: "myntra.com",
-  ajio: "ajio.com",
-  nykaa: "nykaa.com",
-  tatacliq: "tatacliq.com",
-  netflix: "netflix.com",
-  spotify: "spotify.com",
-  hotstar: "hotstar.com",
-  primevideo: "primevideo.com",
-  bookmyshow: "bookmyshow.com",
-  pvr: "pvrcinemas.com",
-  blinkit: "blinkit.com",
-  zepto: "zeptonow.com",
-  bigbasket: "bigbasket.com",
-  jiomart: "jiomart.com",
-  dmart: "dmartindia.com",
-  relianceretail: "relianceretail.com",
-  apollopharmacy: "apollopharmacy.in",
-  starbucks: "starbucks.in",
-  mcdonalds: "mcdonaldsindia.com",
-  kfc: "kfc.com",
-  dominos: "dominos.co.in",
-  irctc: "irctc.co.in",
-  makemytrip: "makemytrip.com",
-  goibibo: "goibibo.com",
-  cleartrip: "cleartrip.com",
-  jio: "jio.com",
-  airtel: "airtel.in",
-  cred: "cred.club",
-  paytm: "paytm.com",
-  googlepay: "pay.google.com",
-  phonepe: "phonepe.com",
-  google: "google.com",
-  apple: "apple.com",
-});
+import {
+  BRAND_VISUALS,
+  normalizeMerchantWords,
+  resolveMerchantBrandVisual,
+  sanitizeMerchantName,
+} from "../services/merchantBrandRegistry";
 
-const MAX_REMOTE_LOGOS_PER_SESSION = 20;
-const RESERVED_LOGO_URLS = new Set();
-const GENERIC_MERCHANTS = new Set([
-  "merchant",
-  "transaction",
-  "transfer",
-  "unknown",
-  "unknownmerchant",
-  "privatehandle",
-  "privatereference",
-]);
+export {
+  BRAND_VISUALS,
+  resolveMerchantBrandVisual,
+  sanitizeMerchantName,
+};
 
 const DEFAULT_FALLBACK = Object.freeze({
   Icon: CreditCard,
@@ -100,38 +56,6 @@ const CATEGORY_FALLBACKS = Object.freeze({
   },
 });
 
-function normalizeMerchantWords(merchantName) {
-  return String(merchantName ?? "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’']/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-export function sanitizeMerchantName(merchantName) {
-  return normalizeMerchantWords(merchantName).replace(/\s+/g, "");
-}
-
-function reserveLogoUrl(logoUrl) {
-  if (!logoUrl) return false;
-  if (RESERVED_LOGO_URLS.has(logoUrl)) return true;
-  if (RESERVED_LOGO_URLS.size >= MAX_REMOTE_LOGOS_PER_SESSION) return false;
-  RESERVED_LOGO_URLS.add(logoUrl);
-  return true;
-}
-
-export function resolveMerchantLogoUrl(merchantName) {
-  const sanitizedName = sanitizeMerchantName(merchantName);
-  if (sanitizedName.length < 2 || GENERIC_MERCHANTS.has(sanitizedName)) return null;
-
-  const domain = BRAND_DOMAINS[sanitizedName];
-  if (!domain) return null;
-
-  return `https://unavatar.io/google/${domain}?fallback=false`;
-}
-
 function merchantInitials(merchantName) {
   const words = normalizeMerchantWords(merchantName)
     .split(" ")
@@ -141,36 +65,33 @@ function merchantInitials(merchantName) {
   return null;
 }
 
+function brandMarkSize(mark, avatarSize) {
+  if (mark.length <= 1) return Math.max(14, Math.round(avatarSize * 0.46));
+  if (mark.length === 2) return Math.max(11, Math.round(avatarSize * 0.32));
+  return Math.max(9, Math.round(avatarSize * 0.23));
+}
+
 /**
- * Circular verified-brand logo with a stable local fallback.
+ * Circular local merchant mark with a stable category fallback.
  * The avatar is decorative because its transaction row announces the merchant.
  *
  * @param {{
  *   merchantName?: string | null;
+ *   merchantKey?: string | null;
  *   category?: string | null;
  *   size?: number;
  * }} props
  */
-function MerchantAvatarComponent({ merchantName, category, size = 44 }) {
+function MerchantAvatarComponent({ merchantName, merchantKey, category, size = 44 }) {
   const avatarSize = Number.isFinite(size) ? Math.max(28, Math.round(size)) : 44;
-  const logoUrl = useMemo(
-    () => resolveMerchantLogoUrl(merchantName),
-    [merchantName],
-  );
-  const imageSource = useMemo(
-    () => (reserveLogoUrl(logoUrl) ? { uri: logoUrl } : null),
-    [logoUrl],
+  const brandVisual = useMemo(
+    () => resolveMerchantBrandVisual(merchantName, merchantKey),
+    [merchantKey, merchantName],
   );
   const initials = useMemo(() => merchantInitials(merchantName), [merchantName]);
-  const [loadedUrl, setLoadedUrl] = useState(null);
-  const [failedUrl, setFailedUrl] = useState(null);
   const fallback = CATEGORY_FALLBACKS[String(category ?? "").toUpperCase()]
     ?? DEFAULT_FALLBACK;
   const radius = avatarSize / 2;
-  const plateInset = Math.max(1, Math.round(avatarSize * 0.048));
-  const plateRadius = (avatarSize - plateInset * 2) / 2;
-  const imageLoaded = loadedUrl === logoUrl;
-  const imageFailed = failedUrl === logoUrl;
   const FallbackIcon = fallback.Icon;
 
   return (
@@ -209,30 +130,27 @@ function MerchantAvatarComponent({ merchantName, category, size = 44 }) {
         />
       )}
 
-      {imageSource && !imageFailed ? (
+      {brandVisual ? (
         <View
           style={[
-            styles.logoPlate,
-            {
-              top: plateInset,
-              right: plateInset,
-              bottom: plateInset,
-              left: plateInset,
-              borderRadius: plateRadius,
-              opacity: imageLoaded ? 1 : 0,
-            },
+            styles.brandSurface,
+            { backgroundColor: brandVisual.backgroundColor },
           ]}
         >
-          <Image
-            key={logoUrl}
-            source={imageSource}
-            style={styles.logo}
-            resizeMode="contain"
-            fadeDuration={0}
-            accessible={false}
-            onLoad={() => setLoadedUrl(logoUrl)}
-            onError={() => setFailedUrl(logoUrl)}
-          />
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[
+              styles.brandMark,
+              {
+                color: brandVisual.foregroundColor,
+                fontSize: brandMarkSize(brandVisual.mark, avatarSize),
+                lineHeight: Math.round(avatarSize * 0.58),
+              },
+            ]}
+          >
+            {brandVisual.mark}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -242,6 +160,7 @@ function MerchantAvatarComponent({ merchantName, category, size = 44 }) {
 export const MerchantAvatar = memo(
   MerchantAvatarComponent,
   (previous, next) => previous.merchantName === next.merchantName
+    && previous.merchantKey === next.merchantKey
     && previous.category === next.category
     && previous.size === next.size,
 );
@@ -254,23 +173,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(24,35,61,0.12)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#D9DDE5",
   },
   initials: {
     fontWeight: "800",
     letterSpacing: 0.45,
     textAlign: "center",
   },
-  logoPlate: {
-    position: "absolute",
+  brandSurface: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 3,
   },
-  logo: {
-    width: "90%",
-    height: "90%",
+  brandMark: {
+    width: "84%",
+    fontWeight: "900",
+    letterSpacing: -0.3,
+    textAlign: "center",
   },
 });

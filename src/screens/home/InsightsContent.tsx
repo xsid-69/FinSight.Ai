@@ -42,7 +42,7 @@ import { useReducedMotion } from "../../hooks/useReducedMotion";
 import {
   buildFinancialInsights,
   categoryLabel,
-  merchantLabel,
+  transactionMerchantLabel,
 } from "../../services/financialInsights";
 import type {
   FinancialInsights,
@@ -503,22 +503,24 @@ function StatementScopePicker({
   );
 }
 
-function LedgerRow({ transaction, last }: { transaction: PrivateTransaction; last: boolean }) {
+function LedgerRow({ transaction }: { transaction: PrivateTransaction }) {
   const credit = transaction.type === "CREDIT";
-  const merchant = merchantLabel(transaction.sanitizedDescription);
+  const merchant = transactionMerchantLabel(transaction);
   return (
     <XStack
-      minHeight={70}
+      minHeight={72}
       paddingVertical={12}
+      paddingHorizontal={14}
+      borderRadius={16}
+      backgroundColor="$backgroundStrong"
       alignItems="center"
       gap={12}
-      borderBottomWidth={last ? 0 : 1}
-      borderBottomColor="$borderColor"
       accessible
       accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${displayDate(transaction.date)}`}
     >
       <MerchantAvatar
         merchantName={merchant}
+        merchantKey={transaction.merchantKey}
         category={transaction.category}
         size={42}
       />
@@ -590,7 +592,7 @@ function ScopedTransactionsWorkspace({
     if (filter === "debit" && transaction.type !== "DEBIT") return false;
     if (!normalizedQuery) return true;
     return [
-      merchantLabel(transaction.sanitizedDescription),
+      transactionMerchantLabel(transaction),
       transaction.sanitizedDescription,
       categoryLabel(transaction.category),
       transaction.date,
@@ -861,18 +863,11 @@ function ScopedTransactionsWorkspace({
             </XStack>
 
             {visibleTransactions.length > 0 ? (
-              <YStack
-                borderRadius={19}
-                borderWidth={1}
-                borderColor="$borderColor"
-                backgroundColor="$backgroundStrong"
-                paddingHorizontal={15}
-              >
-                {visibleTransactions.map((transaction, index) => (
+              <YStack gap={8}>
+                {visibleTransactions.map((transaction) => (
                   <LedgerRow
                     key={transaction.id}
                     transaction={transaction}
-                    last={index === visibleTransactions.length - 1}
                   />
                 ))}
               </YStack>
@@ -1644,7 +1639,7 @@ export function InsightsContent({
                     icon={ReceiptText}
                     label="Largest debit"
                     value={scopedInsights.largestDebit
-                      ? merchantLabel(scopedInsights.largestDebit.sanitizedDescription)
+                      ? transactionMerchantLabel(scopedInsights.largestDebit)
                       : "No debit found"}
                     detail={scopedInsights.largestDebit
                       ? `₹${Math.round(scopedInsights.largestDebit.amount).toLocaleString("en-IN")}`

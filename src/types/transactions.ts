@@ -12,6 +12,50 @@ export type TransactionCategory =
   | "TRANSPORTATION"
   | "UTILITIES";
 
+export type MerchantBrandKey =
+  | "zomato"
+  | "swiggy"
+  | "instamart"
+  | "uber"
+  | "ola"
+  | "rapido"
+  | "amazonpay"
+  | "amazon"
+  | "flipkart"
+  | "myntra"
+  | "ajio"
+  | "nykaa"
+  | "tatacliq"
+  | "netflix"
+  | "spotify"
+  | "hotstar"
+  | "primevideo"
+  | "bookmyshow"
+  | "pvr"
+  | "blinkit"
+  | "zepto"
+  | "bigbasket"
+  | "jiomart"
+  | "dmart"
+  | "relianceretail"
+  | "apollopharmacy"
+  | "starbucks"
+  | "mcdonalds"
+  | "kfc"
+  | "dominos"
+  | "irctc"
+  | "makemytrip"
+  | "goibibo"
+  | "cleartrip"
+  | "jio"
+  | "airtel"
+  | "cred"
+  | "paytm"
+  | "googlepay"
+  | "phonepe"
+  | "google"
+  | "apple";
+
 export interface PrivateTransaction {
   id: string;
   date: string;
@@ -19,6 +63,7 @@ export interface PrivateTransaction {
   type: TransactionType;
   sanitizedDescription: string;
   category: TransactionCategory;
+  merchantKey?: MerchantBrandKey;
 }
 
 export interface CategoryInsight {

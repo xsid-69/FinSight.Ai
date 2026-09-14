@@ -8,6 +8,10 @@ import { auth, db } from "../config/firebase";
 import { getFirebaseErrorCode, privateCloudSaveMessage } from "./firebaseErrors";
 import { buildFinancialInsights } from "./financialInsights";
 import {
+  isMerchantBrandKey,
+  resolveMerchantBrandKey,
+} from "./merchantBrandRegistry";
+import {
   isSanitizedTransactionDescription,
   normalizeTransactionDescription,
   sanitizeTransactionDescription,
@@ -37,6 +41,7 @@ const TRANSACTION_FIELDS = [
   "sanitizedDescription",
   "category",
 ].sort();
+const OPTIONAL_TRANSACTION_FIELDS = ["merchantKey"];
 
 const FIRESTORE_TRANSACTION_FIELDS = [
   "date",
@@ -45,6 +50,7 @@ const FIRESTORE_TRANSACTION_FIELDS = [
   "sanitizedDescription",
   "category",
 ].sort();
+const OPTIONAL_FIRESTORE_TRANSACTION_FIELDS = ["merchantKey"];
 
 const TRANSACTION_TYPES = new Set(["DEBIT", "CREDIT"]);
 const TRANSACTION_CATEGORIES = new Set([
@@ -651,12 +657,14 @@ export function parseCsvStatement(csvText, userId) {
           continue;
         }
 
+        const merchantKey = resolveMerchantBrandKey(rawDescription);
         const cleanTransaction = {
           date,
           amount: resolvedAmount.amount,
           type: resolvedAmount.type,
           sanitizedDescription: sanitizeTransactionDescription(rawDescription),
           category: categorizeTransaction(rawDescription),
+          ...(merchantKey ? { merchantKey } : {}),
         };
         const identity = transactionIdentity(cleanTransaction);
         const occurrence = (occurrenceCounts.get(identity) || 0) + 1;
@@ -1028,13 +1036,24 @@ function hasExactFields(value, fields) {
   return keys.length === fields.length && keys.every((key, index) => key === fields[index]);
 }
 
+function hasRequiredAndOptionalFields(value, requiredFields, optionalFields) {
+  const keys = Object.keys(value);
+  const allowedFields = new Set([...requiredFields, ...optionalFields]);
+  return requiredFields.every((field) => keys.includes(field))
+    && keys.every((field) => allowedFields.has(field));
+}
+
 export function validateCsvTransaction(transaction, userId) {
   assertUserId(userId);
   if (!transaction || typeof transaction !== "object" || Array.isArray(transaction)) {
     throw new CsvImportError("INVALID_TRANSACTION", "A transaction is not a valid object.");
   }
 
-  if (!hasExactFields(transaction, TRANSACTION_FIELDS)) {
+  if (!hasRequiredAndOptionalFields(
+    transaction,
+    TRANSACTION_FIELDS,
+    OPTIONAL_TRANSACTION_FIELDS,
+  )) {
     throw new CsvImportError(
       "INVALID_TRANSACTION",
       "A transaction contains missing or unsupported fields.",
@@ -1082,6 +1101,11 @@ export function validateCsvTransaction(transaction, userId) {
       transactionId: transaction.id,
     });
   }
+  if ("merchantKey" in transaction && !isMerchantBrandKey(transaction.merchantKey)) {
+    throw new CsvImportError("INVALID_TRANSACTION", "A verified merchant key is invalid.", {
+      transactionId: transaction.id,
+    });
+  }
 
   return true;
 }
@@ -1093,8 +1117,13 @@ function firestoreTransactionPayload(transaction) {
     type: transaction.type,
     sanitizedDescription: transaction.sanitizedDescription,
     category: transaction.category,
+    ...(transaction.merchantKey ? { merchantKey: transaction.merchantKey } : {}),
   };
-  if (!hasExactFields(payload, FIRESTORE_TRANSACTION_FIELDS)) {
+  if (!hasRequiredAndOptionalFields(
+    payload,
+    FIRESTORE_TRANSACTION_FIELDS,
+    OPTIONAL_FIRESTORE_TRANSACTION_FIELDS,
+  )) {
     throw new CsvImportError("INVALID_TRANSACTION", "The private cloud payload is invalid.");
   }
   return payload;

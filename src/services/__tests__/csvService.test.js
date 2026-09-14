@@ -38,6 +38,10 @@ import {
   sanitizeTransactionDescription,
 } from "../privacySanitizer";
 import {
+  resolveMerchantBrandKey,
+  resolveMerchantBrandVisual,
+} from "../merchantBrandRegistry";
+import {
   FIRESTORE_BATCH_LIMIT,
   MAX_CSV_FILE_BYTES,
   CsvImportError,
@@ -95,6 +99,30 @@ beforeEach(() => {
     new Error("Legacy reader should not be used when File.text succeeds."),
   );
   configureSuccessfulBatches();
+});
+
+describe("verified merchant brand resolution", () => {
+  test.each([
+    ["UPI/OLA@upi", "ola", "OLA"],
+    ["UPI/DR/123/UBER/PAYMENT", "uber", "U"],
+    ["POS/DOMINO'S", "dominos", "D"],
+    ["AMAZON PAY REFUND", "amazonpay", "AP"],
+    ["GOOGLE PAY ORDER", "googlepay", "GP"],
+  ])("resolves reviewed aliases to local visual identities: %s", (description, key, mark) => {
+    expect(resolveMerchantBrandKey(description)).toBe(key);
+    expect(resolveMerchantBrandVisual(description)).toMatchObject({ key, mark });
+  });
+
+  test.each([
+    "Olaf Bakery",
+    "Amazonia Cafe",
+    "SUPERUBER",
+    "AMAZON UBER",
+    "PRIVATE_HANDLE",
+  ])("does not infer a brand from unsafe or ambiguous text: %s", (description) => {
+    expect(resolveMerchantBrandKey(description)).toBeNull();
+    expect(resolveMerchantBrandVisual(description)).toBeNull();
+  });
 });
 
 describe("categorizeTransaction", () => {
@@ -192,6 +220,7 @@ describe("parseCsvStatement bank formats", () => {
       amount: 1234.5,
       type: "DEBIT",
       category: "FOOD",
+      merchantKey: "zomato",
     });
     expect(Object.keys(parsed.transactions[0])).toEqual([
       "id",
@@ -200,6 +229,7 @@ describe("parseCsvStatement bank formats", () => {
       "type",
       "sanitizedDescription",
       "category",
+      "merchantKey",
     ]);
     expect(parsed.transactions[1]).toMatchObject({
       date: "2024-02-02",
@@ -227,6 +257,7 @@ describe("parseCsvStatement bank formats", () => {
       amount: 1250,
       type: "DEBIT",
       category: "FOOD",
+      merchantKey: "swiggy",
     });
     expect(parsed.transactions[1]).toMatchObject({
       date: "2024-02-01",
@@ -257,6 +288,30 @@ describe("parseCsvStatement bank formats", () => {
     const parsed = parseCsvStatement(csv, USER_ID, { createdAt: CREATED_AT });
     expect(parsed.delimiter).toBe("|");
     expect(parsed.transactions[0].category).toBe("FOOD");
+  });
+
+  test("retains only verified merchant keys before UPI handles are privacy-masked", () => {
+    const csv = [
+      "Date,Description,Debit,Credit",
+      "01/01/2025,UPI/OLA@upi,100,",
+      "02/01/2025,UPI/UBER@upi,200,",
+      "03/01/2025,UPI/DOMINOS@upi,300,",
+      "04/01/2025,UPI/OLAF@upi,400,",
+      "05/01/2025,UPI/AMAZONIA@upi,500,",
+    ].join("\n");
+
+    const parsed = parseCsvStatement(csv, USER_ID, { createdAt: CREATED_AT });
+
+    expect(parsed.transactions.map(({ merchantKey }) => merchantKey)).toEqual([
+      "ola",
+      "uber",
+      "dominos",
+      undefined,
+      undefined,
+    ]);
+    expect(parsed.transactions.every(
+      ({ sanitizedDescription }) => sanitizedDescription === "UPI/PRIVATE_HANDLE",
+    )).toBe(true);
   });
 
   test("parses the exact supplied statement using amount columns rather than the Type label", () => {
@@ -290,8 +345,21 @@ describe("parseCsvStatement bank formats", () => {
     expect(parsed.transactions).toEqual(expect.arrayContaining([
       expect.objectContaining({ sanitizedDescription: "UPI/PRIVATE_HANDLE", category: "ENTERTAINMENT" }),
       expect.objectContaining({ sanitizedDescription: "UPI/PRIVATE_HANDLE", category: "FOOD" }),
-      expect.objectContaining({ sanitizedDescription: "UPI/PRIVATE_HANDLE", category: "TRANSPORTATION" }),
-      expect.objectContaining({ sanitizedDescription: "POS/DMART", category: "SHOPPING" }),
+      expect.objectContaining({
+        sanitizedDescription: "UPI/PRIVATE_HANDLE",
+        category: "TRANSPORTATION",
+        merchantKey: "ola",
+      }),
+      expect.objectContaining({
+        sanitizedDescription: "UPI/PRIVATE_HANDLE",
+        category: "TRANSPORTATION",
+        merchantKey: "uber",
+      }),
+      expect.objectContaining({
+        sanitizedDescription: "POS/DMART",
+        category: "SHOPPING",
+        merchantKey: "dmart",
+      }),
     ]));
 
     const privacyContractSamples = [
@@ -676,6 +744,7 @@ describe("Firestore ingestion", () => {
         type: "DEBIT",
         sanitizedDescription: "DMART RETAIL",
         category: "SHOPPING",
+        merchantKey: "dmart",
       },
     );
   });

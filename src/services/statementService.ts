@@ -207,6 +207,11 @@ export async function loadPrivateStatement(
         type: data.type as SavedStatementDetail["transactions"][number]["type"],
         sanitizedDescription: data.sanitizedDescription as string,
         category: data.category as SavedStatementDetail["transactions"][number]["category"],
+        ...(typeof data.merchantKey === "string"
+          ? {
+            merchantKey: data.merchantKey as SavedStatementDetail["transactions"][number]["merchantKey"],
+          }
+          : {}),
       });
     });
 

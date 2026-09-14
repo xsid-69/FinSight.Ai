@@ -6,14 +6,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ArrowRight,
   BrainCircuit,
-  Eye,
   Fingerprint,
   MessageSquareText,
+  ShieldCheck,
 } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
 
 import { useAuth } from "../../context/AuthContext";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { OverviewArtwork, type OverviewArtworkVariant } from "./OverviewArtwork";
 import { useOptionalHomePagerCoordinator } from "./HomePagerCoordinator";
 
 const PAGE_H = 20;
@@ -23,119 +24,94 @@ interface OverviewContentProps {
   navigation?: any;
 }
 
-interface WorkspacePathProps {
+interface OverviewActionProps {
   icon: typeof MessageSquareText;
-  eyebrow: string;
+  artwork: OverviewArtworkVariant;
   title: string;
   body: string;
   action: string;
   onPress: () => void;
-  emphasis?: boolean;
+  tone: "plain" | "tinted";
+  wide: boolean;
 }
 
-function WorkspacePath({
+function OverviewAction({
   icon: Icon,
-  eyebrow,
+  artwork,
   title,
   body,
   action,
   onPress,
-  emphasis = false,
-}: WorkspacePathProps) {
+  tone,
+  wide,
+}: OverviewActionProps) {
+  const tinted = tone === "tinted";
+
   return (
     <YStack
-      minHeight={emphasis ? 188 : 166}
-      borderRadius={emphasis ? 26 : 20}
-      backgroundColor={emphasis ? "$navy" : "$backgroundStrong"}
-      borderWidth={emphasis ? 0 : 1}
-      borderColor="$borderColor"
-      padding={emphasis ? 20 : 18}
-      gap={14}
+      flex={1}
+      minHeight={wide ? 238 : 194}
+      borderRadius={22}
+      backgroundColor={tinted ? "#F1EFFE" : "$backgroundStrong"}
+      padding={18}
+      gap={12}
       overflow="hidden"
     >
-      {emphasis ? (
-        <>
-          <View
-            position="absolute"
-            width={156}
-            height={156}
-            borderRadius={78}
-            backgroundColor="rgba(235,0,27,0.18)"
-            right={-66}
-            top={-88}
-          />
-          <View
-            position="absolute"
-            width={68}
-            height={68}
-            borderRadius={34}
-            borderWidth={1}
-            borderColor="rgba(255,255,255,0.10)"
-            right={34}
-            bottom={-34}
-          />
-        </>
-      ) : null}
-
-      <XStack alignItems="flex-start" justifyContent="space-between" gap={14}>
+      <XStack alignItems="center" justifyContent="space-between" gap={12}>
         <View
-          width={44}
-          height={44}
-          borderRadius={emphasis ? 15 : 13}
-          backgroundColor={emphasis ? "rgba(255,255,255,0.11)" : "rgba(235,0,27,0.07)"}
+          width={42}
+          height={42}
+          borderRadius={14}
+          backgroundColor={tinted ? "#E2DEFA" : "#FFE9EB"}
           alignItems="center"
           justifyContent="center"
         >
-          <Icon size={20} color={emphasis ? "white" : "$red"} strokeWidth={2.15} />
+          <Icon
+            size={19}
+            color={tinted ? "#5E50C8" : "$red"}
+            strokeWidth={2.15}
+          />
         </View>
-        <Text
-          fontSize={10.5}
-          fontWeight="800"
-          letterSpacing={1.05}
-          color={emphasis ? "#C9CEDA" : "$ink2"}
-        >
-          {eyebrow}
-        </Text>
+        <OverviewArtwork variant={artwork} width={wide ? 132 : 116} />
       </XStack>
 
       <YStack flex={1} gap={5}>
         <Text
-          maxWidth={emphasis ? 460 : 360}
-          fontSize={emphasis ? 20 : 17}
-          lineHeight={emphasis ? 26 : 23}
+          maxWidth={360}
+          fontSize={18}
+          lineHeight={24}
           fontWeight="800"
-          letterSpacing={emphasis ? -0.45 : -0.25}
-          color={emphasis ? "white" : "$navy"}
+          letterSpacing={-0.3}
+          color="$navy"
         >
           {title}
         </Text>
-        <Text
-          maxWidth={emphasis ? 500 : 410}
-          fontSize={12.5}
-          lineHeight={18}
-          color={emphasis ? "#C9CEDA" : "$navy2"}
-        >
+        <Text maxWidth={420} fontSize={13} lineHeight={19} color="$navy2">
           {body}
         </Text>
       </YStack>
 
       <XStack
-        minHeight={50}
+        minHeight={48}
         paddingHorizontal={14}
         borderRadius={14}
-        backgroundColor={emphasis ? "white" : "$surfaceAlt"}
+        backgroundColor={tinted ? "#E2DEFA" : "$surfaceAlt"}
         alignItems="center"
         justifyContent="space-between"
         gap={10}
         onPress={onPress}
-        pressStyle={{ opacity: 0.78, scale: 0.985 }}
+        pressStyle={{ opacity: 0.76, scale: 0.985 }}
         accessibilityRole="button"
         accessibilityLabel={action}
       >
         <Text fontSize={13.5} fontWeight="800" color="$navy">
           {action}
         </Text>
-        <ArrowRight size={17} color={emphasis ? "$red" : "$navy2"} strokeWidth={2.3} />
+        <ArrowRight
+          size={17}
+          color={tinted ? "#5E50C8" : "$navy2"}
+          strokeWidth={2.3}
+        />
       </XStack>
     </YStack>
   );
@@ -150,6 +126,9 @@ export function OverviewContent({ navigation }: OverviewContentProps) {
   const displayName = profile?.fullName || user?.displayName || "";
   const firstName = displayName.trim().split(/\s+/)[0];
   const wide = width >= 720;
+  const heroArtworkWidth = wide
+    ? 298
+    : Math.min(278, Math.max(112, width - PAGE_H * 4));
 
   const openHomePage = (tab: "Transactions" | "Insights") => {
     void Haptics.selectionAsync();
@@ -184,91 +163,143 @@ export function OverviewContent({ navigation }: OverviewContentProps) {
           animate={{ opacity: 1, translateY: 0 }}
           transition={motion}
         >
-          <YStack marginBottom={20} gap={9}>
-            <XStack alignItems="center" gap={8}>
-              <View width={24} height={2} borderRadius={1} backgroundColor="$red" />
-              <Text fontSize={11} fontWeight="800" letterSpacing={1.15} color="$ink2">
-                YOUR FINANCIAL SPACE
-              </Text>
-            </XStack>
-            <Text
-              maxWidth={610}
-              fontSize={31}
-              lineHeight={37}
-              fontWeight="800"
-              letterSpacing={-1.05}
-              color="$navy"
-            >
-              {firstName ? `Clarity starts here, ${firstName}.` : "Clarity starts here."}
-            </Text>
-            <Text maxWidth={590} fontSize={13.5} lineHeight={20} color="$navy2">
-              Move between your source activity, private intelligence, and guided questions without mixing their roles.
-            </Text>
-          </YStack>
-        </MotiView>
-
-        <MotiView
-          from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={reducedMotion ? motion : { ...motion, delay: 45 }}
-        >
-          <WorkspacePath
-            icon={Eye}
-            eyebrow="PRIVATE INTELLIGENCE"
-            title="A focused place to understand the financial records you choose."
-            body="Explore patterns, movement, and categorized activity inside a workspace built to keep scope visible."
-            action="Open private Insights workspace"
-            onPress={() => openHomePage("Insights")}
-            emphasis
-          />
-        </MotiView>
-
-        <MotiView
-          from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={reducedMotion ? motion : { ...motion, delay: 85 }}
-        >
           <YStack
-            marginTop={14}
-            flexDirection={wide ? "row" : "column"}
-            gap={14}
-            alignItems="stretch"
+            borderRadius={28}
+            backgroundColor="$navy"
+            padding={wide ? 24 : 20}
+            overflow="hidden"
           >
-            <YStack flex={1.05}>
-              <WorkspacePath
-                icon={MessageSquareText}
-                eyebrow="SOURCE ACTIVITY"
-                title="Message activity stays separate and explicit."
-                body="See the current connection state without confusing it with privately analyzed records."
-                action="View message connection status"
-                onPress={() => openHomePage("Transactions")}
-              />
-            </YStack>
-            <YStack flex={0.95}>
-              <WorkspacePath
-                icon={BrainCircuit}
-                eyebrow="GUIDED QUESTIONS"
-                title="Ask FinSight with intent."
-                body="Open the assistant when you want a focused next step rather than another dashboard."
-                action="Open FinSight AI"
-                onPress={openAI}
-              />
-            </YStack>
+            <View
+              position="absolute"
+              width={190}
+              height={190}
+              borderRadius={95}
+              backgroundColor="rgba(235,0,27,0.16)"
+              right={-84}
+              top={-108}
+            />
+            <XStack
+              flexDirection={wide ? "row" : "column"}
+              alignItems={wide ? "center" : "stretch"}
+              gap={wide ? 24 : 14}
+            >
+              <YStack flex={1} gap={13}>
+                <XStack alignItems="center" gap={8}>
+                  <ShieldCheck size={17} color="#A9E2B2" strokeWidth={2.2} />
+                  <Text fontSize={12.5} fontWeight="700" color="#DDE2EC">
+                    {firstName ? `Private workspace for ${firstName}` : "Your private workspace"}
+                  </Text>
+                </XStack>
+
+                <YStack gap={7}>
+                  <Text
+                    maxWidth={460}
+                    fontSize={wide ? 32 : 28}
+                    lineHeight={wide ? 38 : 34}
+                    fontWeight="800"
+                    letterSpacing={wide ? -1 : -0.8}
+                    color="white"
+                  >
+                    Your money, easier to read.
+                  </Text>
+                  <Text maxWidth={470} fontSize={13.5} lineHeight={21} color="#D4D9E3">
+                    Bring in a statement when you choose and review patterns from that imported file.
+                  </Text>
+                </YStack>
+
+                {!wide ? (
+                  <XStack justifyContent="center" marginVertical={-4}>
+                    <OverviewArtwork variant="hero" width={heroArtworkWidth} />
+                  </XStack>
+                ) : null}
+
+                <XStack
+                  minHeight={50}
+                  paddingHorizontal={15}
+                  borderRadius={15}
+                  backgroundColor="white"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap={10}
+                  onPress={() => openHomePage("Insights")}
+                  pressStyle={{ opacity: 0.82, scale: 0.985 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open private Insights workspace"
+                >
+                  <Text fontSize={13.5} fontWeight="800" color="$navy">
+                    Open private Insights workspace
+                  </Text>
+                  <ArrowRight size={18} color="$red" strokeWidth={2.4} />
+                </XStack>
+
+                <XStack alignItems="center" gap={7}>
+                  <Fingerprint size={15} color="#A9E2B2" strokeWidth={2.1} />
+                  <Text flex={1} fontSize={11.5} lineHeight={16} color="#C7CEDA">
+                    Only the records you choose are analyzed here.
+                  </Text>
+                </XStack>
+              </YStack>
+
+              {wide ? <OverviewArtwork variant="hero" width={heroArtworkWidth} /> : null}
+            </XStack>
           </YStack>
         </MotiView>
 
         <MotiView
           from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : 12 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={reducedMotion ? motion : { ...motion, delay: 120 }}
+          transition={reducedMotion ? motion : { ...motion, delay: 55 }}
+        >
+          <YStack marginTop={28} gap={6}>
+            <Text fontSize={21} lineHeight={27} fontWeight="800" letterSpacing={-0.45} color="$navy">
+              Choose your next step
+            </Text>
+            <Text maxWidth={570} fontSize={13} lineHeight={19} color="$navy2">
+              Pick the workspace that matches what you want to review.
+            </Text>
+          </YStack>
+
+          <YStack
+            marginTop={14}
+            flexDirection={wide ? "row" : "column"}
+            gap={12}
+            alignItems="stretch"
+          >
+            <OverviewAction
+              icon={MessageSquareText}
+              artwork="activity"
+              title="Check source activity"
+              body="See whether a message source is connected without confusing an empty state with monitored activity."
+              action="View message connection status"
+              onPress={() => openHomePage("Transactions")}
+              tone="plain"
+              wide={wide}
+            />
+            <OverviewAction
+              icon={BrainCircuit}
+              artwork="assistant"
+              title="Ask a focused question"
+              body="Open FinSight AI when you want help understanding the workspace or deciding what to review next."
+              action="Open FinSight AI"
+              onPress={openAI}
+              tone="tinted"
+              wide={wide}
+            />
+          </YStack>
+        </MotiView>
+
+        <MotiView
+          from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : 8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={reducedMotion ? motion : { ...motion, delay: 90 }}
         >
           <XStack
-            marginTop={22}
+            marginTop={20}
             minHeight={82}
             paddingHorizontal={16}
             paddingVertical={14}
             borderRadius={18}
-            backgroundColor="rgba(99,166,74,0.075)"
+            backgroundColor="#EDF7EF"
             alignItems="center"
             gap={13}
           >
@@ -276,7 +307,7 @@ export function OverviewContent({ navigation }: OverviewContentProps) {
               width={42}
               height={42}
               borderRadius={14}
-              backgroundColor="rgba(99,166,74,0.12)"
+              backgroundColor="#DCEFE0"
               alignItems="center"
               justifyContent="center"
             >
@@ -287,7 +318,7 @@ export function OverviewContent({ navigation }: OverviewContentProps) {
                 Boundaries you can see
               </Text>
               <Text maxWidth={560} fontSize={12} lineHeight={17} color="$navy2">
-                Each workspace names its source and availability before it asks you to act.
+                Imported statements, message connection status, and guided help stay clearly separated.
               </Text>
             </YStack>
           </XStack>

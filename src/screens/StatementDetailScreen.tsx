@@ -19,7 +19,7 @@ import {
   MonthlyCashFlowChart,
 } from "../components/charts/StatementCharts";
 import { useAuth } from "../context/AuthContext";
-import { categoryLabel, merchantLabel } from "../services/financialInsights";
+import { categoryLabel, transactionMerchantLabel } from "../services/financialInsights";
 import { loadPrivateStatement } from "../services/transactionService";
 import type { SavedStatementDetail } from "../types/transactions";
 
@@ -264,23 +264,26 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                     {detail.transactions.length.toLocaleString("en-IN")}
                   </Text>
                 </XStack>
-                <Card padding={0} overflow="hidden">
-                  {detail.transactions.slice(0, 20).map((transaction, index, rows) => {
-                    const merchant = merchantLabel(transaction.sanitizedDescription);
+                <YStack gap={8}>
+                  {detail.transactions.slice(0, 20).map((transaction) => {
+                    const merchant = transactionMerchantLabel(transaction);
                     const credit = transaction.type === "CREDIT";
                     return (
                       <XStack
                         key={transaction.id}
-                        padding={15}
+                        minHeight={72}
+                        paddingVertical={12}
+                        paddingHorizontal={14}
+                        borderRadius={16}
+                        backgroundColor="$backgroundStrong"
                         alignItems="center"
                         gap={12}
-                        borderBottomWidth={index === rows.length - 1 ? 0 : 1}
-                        borderBottomColor="$borderColor"
                         accessible
                         accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${transactionDateLabel(transaction.date)}`}
                       >
                         <MerchantAvatar
                           merchantName={merchant}
+                          merchantKey={transaction.merchantKey}
                           category={transaction.category}
                           size={42}
                         />
@@ -301,7 +304,7 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                       </XStack>
                     );
                   })}
-                </Card>
+                </YStack>
                 {detail.transactions.length > 20 ? (
                   <Text textAlign="center" fontSize={11.5} lineHeight={17} color="$ink2">
                     Showing the newest 20 of {detail.transactions.length.toLocaleString("en-IN")} extracted transactions.

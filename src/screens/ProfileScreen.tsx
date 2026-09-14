@@ -121,14 +121,6 @@ function DetailContent({ section, displayName, email, provider }: DetailContentP
     }
   };
 
-  const openLogoCredits = async () => {
-    try {
-      await Linking.openURL("https://unavatar.io");
-    } catch {
-      Alert.alert("Logo credits", "Merchant avatars are provided by Unavatar at unavatar.io.");
-    }
-  };
-
   if (section === "notifications") {
     return (
       <Card>
@@ -167,26 +159,6 @@ function DetailContent({ section, displayName, email, provider }: DetailContentP
           <Text color="white" fontSize={14} fontWeight="800">Email support</Text>
         </XStack>
         <Text textAlign="center" fontSize={12.5} color="$secondary">support@finsight.ai</Text>
-        <XStack
-          minHeight={50}
-          paddingHorizontal={14}
-          borderRadius={16}
-          borderWidth={1}
-          borderColor="$borderColor"
-          backgroundColor="$backgroundStrong"
-          alignItems="center"
-          gap={11}
-          onPress={openLogoCredits}
-          pressStyle={{ opacity: 0.78 }}
-          accessibilityRole="link"
-          accessibilityLabel="Open Unavatar merchant logo credits"
-        >
-          <Link2 size={17} color="$navy2" strokeWidth={2.2} />
-          <YStack flex={1} gap={2}>
-            <Text fontSize={12.5} fontWeight="800" color="$navy">Merchant logo credits</Text>
-            <Text fontSize={11.5} color="$secondary">Avatars provided by Unavatar</Text>
-          </YStack>
-        </XStack>
       </YStack>
     );
   }

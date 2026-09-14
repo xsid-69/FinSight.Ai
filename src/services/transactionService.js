@@ -2,6 +2,7 @@ import { collection, getDocs } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 import { getFirebaseErrorCode, privateCloudReadMessage } from "./firebaseErrors";
+import { isMerchantBrandKey } from "./merchantBrandRegistry";
 import { isSanitizedTransactionDescription } from "./privacySanitizer";
 
 const STORED_TRANSACTION_FIELDS = [
@@ -11,6 +12,7 @@ const STORED_TRANSACTION_FIELDS = [
   "sanitizedDescription",
   "type",
 ];
+const OPTIONAL_STORED_TRANSACTION_FIELDS = ["merchantKey"];
 
 const MAX_TRANSACTION_AMOUNT = 1_000_000_000_000;
 const TRANSACTION_TYPES = new Set(["DEBIT", "CREDIT"]);
@@ -55,11 +57,13 @@ function isRealIsoDate(value) {
 
 function hasExactStoredFields(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-  const keys = Object.keys(data).sort();
-  return (
-    keys.length === STORED_TRANSACTION_FIELDS.length &&
-    keys.every((key, index) => key === STORED_TRANSACTION_FIELDS[index])
-  );
+  const keys = Object.keys(data);
+  const allowedFields = new Set([
+    ...STORED_TRANSACTION_FIELDS,
+    ...OPTIONAL_STORED_TRANSACTION_FIELDS,
+  ]);
+  return STORED_TRANSACTION_FIELDS.every((field) => keys.includes(field))
+    && keys.every((field) => allowedFields.has(field));
 }
 
 export function isCleanStoredTransaction(data) {
@@ -73,7 +77,8 @@ export function isCleanStoredTransaction(data) {
     TRANSACTION_CATEGORIES.has(data.category) &&
     typeof data.sanitizedDescription === "string" &&
     data.sanitizedDescription.length <= 1000 &&
-    isSanitizedTransactionDescription(data.sanitizedDescription)
+    isSanitizedTransactionDescription(data.sanitizedDescription) &&
+    (!("merchantKey" in data) || isMerchantBrandKey(data.merchantKey))
   );
 }
 

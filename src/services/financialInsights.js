@@ -1,3 +1,5 @@
+import { merchantBrandDisplayName } from "./merchantBrandRegistry";
+
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -65,6 +67,11 @@ export function merchantLabel(description) {
   );
   const merchant = withoutHandle.replace(/^[\s/.:_-]+|[\s/.:_-]+$/g, "").trim();
   return merchant || normalized;
+}
+
+export function transactionMerchantLabel(transaction) {
+  return merchantBrandDisplayName(transaction?.merchantKey)
+    || merchantLabel(transaction?.sanitizedDescription);
 }
 
 function emptyInsights() {
@@ -147,7 +154,7 @@ export function buildFinancialInsights(inputTransactions) {
     category.count += 1;
     categoryTotals.set(transaction.category, category);
 
-    const merchant = merchantLabel(transaction.sanitizedDescription);
+    const merchant = transactionMerchantLabel(transaction);
     const merchantTotal = merchantTotals.get(merchant) || {
       merchant,
       amount: 0,
@@ -229,7 +236,7 @@ export function buildFinancialInsights(inputTransactions) {
       id: "largest-debit",
       tone: "neutral",
       title: "Largest debit to review",
-      body: `${formatInr(largestDebit.amount)} at ${merchantLabel(largestDebit.sanitizedDescription)} on ${formatDate(largestDebit.date)}.`,
+      body: `${formatInr(largestDebit.amount)} at ${transactionMerchantLabel(largestDebit)} on ${formatDate(largestDebit.date)}.`,
     });
   }
 
