@@ -3,15 +3,11 @@
     "name": "finsight",
     "slug": "finsight",
     "version": "1.0.0",
+    "platforms": ["android"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "finsight",
     "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.finsight.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
-    },
     "android": {
       "package": "com.finsight.app",
       "googleServicesFile": "./google-services.json",
@@ -21,10 +17,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "predictiveBackGestureEnabled": true
     },
     "plugins": [
       "expo-dev-client",

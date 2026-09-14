@@ -2,10 +2,175 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function hasPrivacySafeDescription(value) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= 1000
+        // Reject email/UPI-style handles and common Indian banking/tax identifiers.
+        && !value.matches('.*@.*')
+        && !value.matches('.*[A-Za-z]{4}0[A-Za-z0-9]{6}.*')
+        && !value.matches('.*[A-Za-z]{5}[0-9]{4}[A-Za-z].*')
+        && !value.matches('.*[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][0-9][A-Za-z][0-9].*')
+        // Reject phone/financial numbers even when separated by spaces, dots, or dashes.
+        && !value.matches('.*[0-9]([ .-]?[0-9]){9}.*')
+        // Reject shorter account/card/CIF/customer identifiers that the client sanitizer masks.
+        && !value.matches('.*([Aa]/?[Cc]|[Aa][Cc][Cc][Tt]|[Aa][Cc][Cc][Oo][Uu][Nn][Tt]|[Cc][Aa][Rr][Dd]|[Cc][Ii][Ff]|[Cc][Uu][Ss][Tt][Oo][Mm][Ee][Rr])( [Nn][Uu][Mm][Bb][Ee][Rr]| [Nn][Oo][.]?| [Ii][Dd]| #)?[ :=-]*[xX*]*[0-9][0-9 xX*.-]{2,}[0-9].*')
+        // Reject labelled transfer references from modified or stale clients.
+        && !value.matches('.*([Uu][Tt][Rr]|[Rr][Rr][Nn]|[Rr][Ee][Ff][Ee][Rr][Ee][Nn][Cc][Ee]|[Rr][Ee][Ff]|[Tt][Rr][Aa][Nn][Ss][Aa][Cc][Tt][Ii][Oo][Nn]|[Tt][Xx][Nn]|[Oo][Rr][Dd][Ee][Rr]|[Mm][Aa][Nn][Dd][Aa][Tt][Ee])( *([Nn][Uu][Mm][Bb][Ee][Rr]|[Nn][Oo][.]?|[Ii][Dd]|#))?[ :=-]*[A-Za-z0-9][A-Za-z0-9._/-]{5,}.*');
+    }
+
+    function isValidSanitizedTransaction(data, transactionId) {
+      return data.keys().hasAll([
+          'date',
+          'amount',
+          'type',
+          'sanitizedDescription',
+          'category'
+        ])
+        && data.keys().hasOnly([
+          'date',
+          'amount',
+          'type',
+          'sanitizedDescription',
+          'category'
+        ])
+        && transactionId.matches('^csv_[a-f0-9]{16}$')
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && hasPrivacySafeDescription(data.sanitizedDescription)
+        && (data.amount is int || data.amount is float)
+        && data.amount > 0
+        && data.amount <= 1000000000000
+        && data.type in ['DEBIT', 'CREDIT']
+        && data.category in [
+          'CASH',
+          'ENTERTAINMENT',
+          'FOOD',
+          'HEALTHCARE',
+          'INCOME',
+          'OTHER',
+          'SHOPPING',
+          'TRANSFER',
+          'TRANSPORTATION',
+          'UTILITIES'
+        ];
+    }
+
+    function isValidStatement(data, statementId) {
+      return statementId.matches('^stmt_[a-f0-9]{16}$')
+        && data.keys().hasAll([
+          'schemaVersion',
+          'displayName',
+          'importedAt',
+          'periodStart',
+          'periodEnd',
+          'transactionCount',
+          'debitCount',
+          'creditCount',
+          'skippedCount',
+          'totalSpent',
+          'totalIncome',
+          'netCashFlow'
+        ])
+        && data.keys().hasOnly([
+          'schemaVersion',
+          'displayName',
+          'importedAt',
+          'periodStart',
+          'periodEnd',
+          'transactionCount',
+          'debitCount',
+          'creditCount',
+          'skippedCount',
+          'totalSpent',
+          'totalIncome',
+          'netCashFlow'
+        ])
+        && data.schemaVersion == 1
+        && data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 120
+        && data.importedAt is timestamp
+        && data.periodStart is string
+        && data.periodStart.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.periodEnd is string
+        && data.periodEnd.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.transactionCount is int
+        && data.transactionCount > 0
+        && data.transactionCount <= 1000000
+        && data.debitCount is int
+        && data.debitCount >= 0
+        && data.creditCount is int
+        && data.creditCount >= 0
+        && data.debitCount + data.creditCount == data.transactionCount
+        && data.skippedCount is int
+        && data.skippedCount >= 0
+        && data.skippedCount <= 1000000
+        && (data.totalSpent is int || data.totalSpent is float)
+        && data.totalSpent >= 0
+        && data.totalSpent <= 1000000000000000
+        && (data.totalIncome is int || data.totalIncome is float)
+        && data.totalIncome >= 0
+        && data.totalIncome <= 1000000000000000
+        && (data.netCashFlow is int || data.netCashFlow is float)
+        && data.netCashFlow >= -1000000000000000
+        && data.netCashFlow <= 1000000000000000;
+    }
+
     match /users/{userId} {
-      allow read, create, update: if request.auth != null
-        && request.auth.uid == userId;
+      allow read, create, update: if isOwner(userId);
       allow delete: if false;
+
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && isValidSanitizedTransaction(request.resource.data, transactionId);
+        allow update: if isOwner(userId)
+          && isValidSanitizedTransaction(request.resource.data, transactionId)
+          && (
+            request.resource.data == resource.data
+            // A current valid record stays immutable; an incompatible legacy
+            // record may be replaced once by the strict privacy-safe schema.
+            || !isValidSanitizedTransaction(resource.data, transactionId)
+          );
+        allow delete: if false;
+      }
+
+      match /statements/{statementId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && isValidStatement(request.resource.data, statementId);
+        allow update: if isOwner(userId)
+          && isValidStatement(request.resource.data, statementId)
+          && (
+            // Preserve current manifests except for retry metadata, while
+            // allowing an incompatible legacy manifest to migrate once.
+            !isValidStatement(resource.data, statementId)
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'importedAt',
+              'skippedCount'
+            ])
+          );
+        allow delete: if false;
+
+        match /transactions/{transactionId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId)
+            && isValidSanitizedTransaction(request.resource.data, transactionId);
+          allow update: if isOwner(userId)
+            && isValidSanitizedTransaction(request.resource.data, transactionId)
+            && (
+              request.resource.data == resource.data
+              // Match aggregate migration behavior for legacy statement rows.
+              || !isValidSanitizedTransaction(resource.data, transactionId)
+            );
+          allow delete: if false;
+        }
+      }
     }
 
     match /{document=**} {

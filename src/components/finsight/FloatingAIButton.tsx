@@ -3,25 +3,23 @@ import { View } from "tamagui";
 import { LinearGradient } from "expo-linear-gradient";
 import { MotiView } from "moti";
 import { Sparkles } from "@tamagui/lucide-icons";
-import * as Haptics from "expo-haptics";
 import { redGradient, gradientStart, gradientEnd, palette } from "../../constants/colors";
+import { useReducedMotion } from "../../hooks/useReducedMotion";
 
 export interface FloatingAIButtonProps {
   size?: number;
+  active?: boolean;
   onPress?: () => void;
 }
 
-/**
- * The signature raised AI action. Red→deep-red gradient with a sparkle glyph
- * (intelligence, not "add"). Floats above the dock center with a soft glow
- * and a gentle idle breathing scale.
- */
-export function FloatingAIButton({ size = 56, onPress }: FloatingAIButtonProps) {
+/** Signature AI action with state-driven motion rather than an idle loop. */
+export function FloatingAIButton({ size = 56, active = false, onPress }: FloatingAIButtonProps) {
+  const reducedMotion = useReducedMotion();
+
   return (
     <MotiView
-      from={{ scale: 0.96 }}
-      animate={{ scale: 1 }}
-      transition={{ type: "timing", duration: 1600, loop: true, repeatReverse: true }}
+      animate={{ scale: reducedMotion ? 1 : active ? 1.025 : 1 }}
+      transition={{ type: "timing", duration: reducedMotion ? 1 : 200 }}
     >
       <View
         width={size}
@@ -31,22 +29,31 @@ export function FloatingAIButton({ size = 56, onPress }: FloatingAIButtonProps) 
         alignItems="center"
         justifyContent="center"
         shadowColor={palette.redDeep}
-        shadowOffset={{ width: 0, height: 10 }}
-        shadowOpacity={0.45}
-        shadowRadius={16}
+        shadowOffset={{ width: 0, height: 8 }}
+        shadowOpacity={active ? 0.38 : 0.26}
+        shadowRadius={14}
         borderWidth={3}
         borderColor="$backgroundStrong"
         pressStyle={{ scale: 0.94 }}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onPress?.();
-        }}
+        onPress={onPress}
+        accessibilityRole={onPress ? "button" : undefined}
+        accessibilityLabel={onPress ? "Open FinSight AI" : undefined}
       >
         <LinearGradient
           colors={redGradient as unknown as [string, string]}
           start={gradientStart}
           end={gradientEnd}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+        <View
+          position="absolute"
+          top={8}
+          left={11}
+          width={22}
+          height={8}
+          borderRadius={8}
+          backgroundColor="rgba(255,255,255,0.20)"
+          rotate="-18deg"
         />
         <Sparkles size={24} color="white" strokeWidth={2.2} />
       </View>

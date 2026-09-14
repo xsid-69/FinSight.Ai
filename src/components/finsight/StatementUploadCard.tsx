@@ -1,85 +1,128 @@
-import React, { useState } from "react";
+import React from "react";
+import { ActivityIndicator } from "react-native";
 import { XStack, YStack, Text, View } from "tamagui";
-import { UploadCloud } from "@tamagui/lucide-icons";
+import { AlertCircle, FileUp } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
 
-const PERIODS = ["6 months", "12 months", "Custom"];
+const OBSIDIAN = "#050706";
+const EMERALD = "#34E0A1";
 
 export interface StatementUploadCardProps {
-  onUpload?: (period: string) => void;
+  onUpload?: () => void;
+  busy?: boolean;
+  errorMessage?: string | null;
 }
 
-/** Premium import experience: hero + dashed drop zone + period selector. */
-export function StatementUploadCard({ onUpload }: StatementUploadCardProps) {
-  const [period, setPeriod] = useState(PERIODS[1]);
+export function StatementUploadCard({
+  onUpload,
+  busy = false,
+  errorMessage,
+}: StatementUploadCardProps) {
+  const handleUpload = () => {
+    if (busy) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onUpload?.();
+  };
 
   return (
     <YStack gap={18}>
-      <YStack gap={6}>
+      <YStack gap={7}>
         <Text fontSize={22} fontWeight="800" color="$navy" letterSpacing={-0.5}>
-          Understand your last year
+          Import your bank statement
         </Text>
         <Text fontSize={14} color="$ink2" lineHeight={20}>
-          Import a bank statement and uncover spending patterns, recurring expenses, and future trends.
+          Choose a CSV exported by your bank. FinSight finds the transaction table, removes account metadata, and analyzes clean records on this device.
         </Text>
       </YStack>
 
-      {/* drop zone */}
-      <View
-        borderRadius="$lg"
-        borderWidth={1.5}
-        borderColor="rgba(225,29,58,0.35)"
-        borderStyle="dashed"
-        backgroundColor="rgba(225,29,58,0.03)"
-        paddingVertical={34}
-        alignItems="center"
-        gap={12}
-        pressStyle={{ scale: 0.99, opacity: 0.9 }}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onUpload?.(period);
-        }}
+      <XStack
+        alignItems="flex-start"
+        borderWidth={1}
+        borderColor="rgba(99,166,74,0.24)"
+        backgroundColor="rgba(99,166,74,0.08)"
+        borderRadius={14}
+        paddingHorizontal={12}
+        paddingVertical={9}
+        accessible
+        accessibilityRole="summary"
       >
-        <View width={56} height={56} borderRadius={28} backgroundColor="rgba(225,29,58,0.10)" alignItems="center" justifyContent="center">
-          <UploadCloud size={26} color="$red" strokeWidth={2} />
+        <Text flex={1} fontSize={12} color="$navy2" lineHeight={17} fontWeight="700">
+          🛡️ Privacy-safe import: account, phone, email/UPI, IFSC, tax, and transfer identifiers are scrubbed locally
+        </Text>
+      </XStack>
+
+      {errorMessage ? (
+        <XStack
+          gap={10}
+          alignItems="flex-start"
+          borderWidth={1}
+          borderColor="rgba(214,69,69,0.28)"
+          backgroundColor="rgba(214,69,69,0.07)"
+          borderRadius={14}
+          padding={13}
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <AlertCircle size={19} color="$danger" strokeWidth={2.2} />
+          <YStack flex={1} gap={3}>
+            <Text fontSize={13.5} fontWeight="800" color="$navy">
+              Import didn’t finish
+            </Text>
+            <Text fontSize={13} color="$ink2" lineHeight={18}>
+              {errorMessage}
+            </Text>
+          </YStack>
+        </XStack>
+      ) : null}
+
+      <View
+        testID="statement-csv-upload"
+        minHeight={178}
+        borderRadius="$lg"
+        backgroundColor={OBSIDIAN}
+        paddingHorizontal={22}
+        paddingVertical={26}
+        alignItems="center"
+        justifyContent="center"
+        gap={13}
+        pressStyle={busy ? undefined : { scale: 0.99, opacity: 0.94 }}
+        onPress={busy ? undefined : handleUpload}
+        pointerEvents={busy ? "none" : "auto"}
+        accessibilityRole="button"
+        accessibilityLabel={busy ? "Importing bank statement" : errorMessage ? "Retry CSV statement import" : "Choose CSV bank statement"}
+        accessibilityHint="Select one CSV file exported by your bank"
+        accessibilityState={{ busy, disabled: busy }}
+      >
+        <View
+          width={58}
+          height={58}
+          borderRadius={29}
+          backgroundColor="rgba(52,224,161,0.12)"
+          alignItems="center"
+          justifyContent="center"
+        >
+          {busy ? (
+            <ActivityIndicator color={EMERALD} size="small" />
+          ) : (
+            <FileUp size={27} color={EMERALD} strokeWidth={2.1} />
+          )}
         </View>
-        <YStack alignItems="center" gap={2}>
-          <Text fontSize={15} fontWeight="800" color="$navy">
-            Upload CSV statement
+        <YStack alignItems="center" gap={4} maxWidth={286}>
+          <Text fontSize={15.5} fontWeight="800" color="white" textAlign="center">
+            {busy ? "Sanitizing and analyzing…" : errorMessage ? "Choose CSV and try again" : "Choose CSV statement"}
           </Text>
-          <Text fontSize={12.5} color="$secondary">
-            Drop a file or tap to browse
+          <Text fontSize={12.5} color="rgba(255,255,255,0.72)" lineHeight={18} textAlign="center">
+            {busy
+              ? "Raw rows stay local; only five privacy-safe transaction fields are saved"
+              : "Common bank CSV exports · one file up to 10 MB"}
           </Text>
         </YStack>
       </View>
 
-      {/* period selector */}
-      <XStack gap={10}>
-        {PERIODS.map((p) => {
-          const on = p === period;
-          return (
-            <View
-              key={p}
-              flex={1}
-              alignItems="center"
-              paddingVertical={12}
-              borderRadius={14}
-              backgroundColor={on ? "$navy" : "$backgroundStrong"}
-              borderWidth={1}
-              borderColor={on ? "$navy" : "$borderColor"}
-              pressStyle={{ scale: 0.97 }}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setPeriod(p);
-              }}
-            >
-              <Text fontSize={13} fontWeight={on ? "800" : "600"} color={on ? "white" : "$navy2"}>
-                {p}
-              </Text>
-            </View>
-          );
-        })}
-      </XStack>
+      <Text fontSize={12.5} color="$secondary" lineHeight={18} paddingHorizontal={2}>
+        The original CSV is never sent to Firestore. Dates, amounts, debit or credit type, sanitized descriptions, and categories are the only saved fields.
+      </Text>
     </YStack>
   );
 }

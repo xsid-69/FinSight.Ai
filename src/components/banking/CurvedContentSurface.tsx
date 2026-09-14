@@ -1,63 +1,122 @@
 import React from "react";
 import { useWindowDimensions } from "react-native";
 import { YStack } from "tamagui";
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
+import Animated, {
+  useAnimatedProps,
+  type SharedValue,
+} from "react-native-reanimated";
+
 import { palette } from "../../constants/colors";
+import { interpolateHeadingCenter } from "../../screens/home/homePagerMath";
 
-const CAP_H = 52; // svg cap height (px)
-const SHOULDER = 30; // y of the flat shoulder
-const PEAK = 5; // y at the top of the bump (rises into red)
-const CORNER = 30; // outer rounded-corner radius (rounded white-body corners)
-const BUMP_HALF = 32; // half-width of the upward bump
-const OVERLAP = 30; // how far the surface pulls up into the red header
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-function clampX(w: number, bx: number): number {
-  const min = CORNER + BUMP_HALF;
-  const max = w - CORNER - BUMP_HALF;
-  return Math.max(min, Math.min(max, bx));
+const CAP_H = 52;
+const OVERLAP = 30;
+
+export function clampX(w: number, bx: number): number {
+  "worklet";
+  const minimum = 62;
+  const maximum = w - 62;
+  return Math.max(minimum, Math.min(maximum, bx));
 }
 
-/** Curved cap path with a soft upward bump centered at `x`. */
-function buildCapPath(w: number, x: number): string {
-  const h = BUMP_HALF * 0.5;
+export function buildTopBorderPath(w: number, x: number): string {
+  "worklet";
+  const safeX = Math.max(62, Math.min(w - 62, x));
+  const halfControl = 16;
   return [
-    `M 0 ${CAP_H}`,
-    `L 0 ${SHOULDER + CORNER}`,
-    `Q 0 ${SHOULDER} ${CORNER} ${SHOULDER}`,
-    `L ${x - BUMP_HALF} ${SHOULDER}`,
-    `C ${x - h} ${SHOULDER} ${x - h} ${PEAK} ${x} ${PEAK}`,
-    `C ${x + h} ${PEAK} ${x + h} ${SHOULDER} ${x + BUMP_HALF} ${SHOULDER}`,
-    `L ${w - CORNER} ${SHOULDER}`,
-    `Q ${w} ${SHOULDER} ${w} ${SHOULDER + CORNER}`,
-    `L ${w} ${CAP_H}`,
-    "Z",
+    "M 0 60",
+    "Q 0 30 30 30",
+    `L ${safeX - 32} 30`,
+    `C ${safeX - halfControl} 30 ${safeX - halfControl} 5 ${safeX} 5`,
+    `C ${safeX + halfControl} 5 ${safeX + halfControl} 30 ${safeX + 32} 30`,
+    `L ${w - 30} 30`,
+    `Q ${w} 30 ${w} 60`,
   ].join(" ");
 }
 
+export function buildClosedFillPath(w: number, x: number): string {
+  "worklet";
+  const safeX = Math.max(62, Math.min(w - 62, x));
+  const halfControl = 16;
+  const border = [
+    "M 0 60",
+    "Q 0 30 30 30",
+    `L ${safeX - 32} 30`,
+    `C ${safeX - halfControl} 30 ${safeX - halfControl} 5 ${safeX} 5`,
+    `C ${safeX + halfControl} 5 ${safeX + halfControl} 30 ${safeX + 32} 30`,
+    `L ${w - 30} 30`,
+    `Q ${w} 30 ${w} 60`,
+  ].join(" ");
+  return `${border} L ${w} 54 L 0 54 Z`;
+}
+
 export interface CurvedContentSurfaceProps {
-  /** Absolute screen-x where the bump should peak (active tab center). */
-  bumpX: number;
-  /** Fill color of the surface (defaults to the calm page background). */
+  /** Absolute screen-x where the bump should peak. */
+  bumpX?: number;
+  /** Shared progress reference. */
+  pageProgress?: SharedValue<number>;
+  /** Measured heading centers. */
+  headingCenters?: readonly number[];
+  /** Fill color of the surface. */
   fill?: string;
-  /** Show a small accent dot at the peak of the bump. */
-  showDot?: boolean;
   children: React.ReactNode;
 }
 
-/**
- * The signature surface that rises into the red header with a soft central
- * wave beneath the active section, with an optional accent dot at the peak.
- */
-export function CurvedContentSurface({ bumpX, fill = palette.background, showDot = true, children }: CurvedContentSurfaceProps) {
+export function CurvedContentSurface({
+  bumpX,
+  pageProgress,
+  headingCenters,
+  fill = palette.background,
+  children,
+}: CurvedContentSurfaceProps) {
   const { width } = useWindowDimensions();
-  const x = clampX(width, bumpX);
-  const d = buildCapPath(width, x);
+  const staticX = clampX(width, typeof bumpX === "number" && Number.isFinite(bumpX) ? bumpX : width / 2);
+
+  const animatedFillProps = useAnimatedProps(() => {
+    if (!pageProgress) return { d: buildClosedFillPath(width, staticX) };
+    const currentX = interpolateHeadingCenter(pageProgress.value, headingCenters, width);
+    return { d: buildClosedFillPath(width, currentX) };
+  }, [width, staticX, pageProgress, headingCenters]);
+
+  const animatedBorderProps = useAnimatedProps(() => {
+    if (!pageProgress) return { d: buildTopBorderPath(width, staticX) };
+    const currentX = interpolateHeadingCenter(pageProgress.value, headingCenters, width);
+    return { d: buildTopBorderPath(width, currentX) };
+  }, [width, staticX, pageProgress, headingCenters]);
 
   return (
-    <YStack flex={1} marginTop={-OVERLAP}>
-      <Svg width={width} height={CAP_H} pointerEvents="none">
-        <Path d={d} fill={fill} />
-        {showDot ? <Circle cx={x} cy={PEAK + 1} r={2.4} fill={palette.red} /> : null}
+    <YStack
+      testID="home-content-curve-touch-layer"
+      flex={1}
+      marginTop={-OVERLAP}
+      pointerEvents="box-none"
+    >
+      <Svg
+        testID="home-content-curve-runtime-swipe-dock-header-curve-v2"
+        nativeID="home-content-curve-runtime-swipe-dock-header-curve-v2"
+        width={width}
+        height={CAP_H}
+        pointerEvents="none"
+      >
+        <AnimatedPath
+          testID="home-content-curve-fill-path"
+          animatedProps={animatedFillProps}
+          d={buildClosedFillPath(width, staticX)}
+          fill={fill}
+        />
+        <AnimatedPath
+          testID="home-content-curve-border-path"
+          animatedProps={animatedBorderProps}
+          d={buildTopBorderPath(width, staticX)}
+          fill="none"
+          stroke={palette.border}
+          strokeWidth={1}
+          strokeLinecap="butt"
+          strokeLinejoin="round"
+        />
       </Svg>
       <YStack flex={1} backgroundColor={fill as any} marginTop={-1}>
         {children}

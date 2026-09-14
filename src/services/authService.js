@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -20,6 +19,12 @@ import { auth, db } from "../config/firebase";
 const googleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
   process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+function getGoogleSignin() {
+  // Load the custom native module only when production Google auth is invoked.
+  // This keeps development email auth runnable in Expo Go.
+  return require("@react-native-google-signin/google-signin").GoogleSignin;
+}
 
 const ERROR_MESSAGES = {
   "auth/email-already-in-use": "An account already exists for this email.",
@@ -176,6 +181,7 @@ export async function loginWithGoogle() {
   }
 
   try {
+    const GoogleSignin = getGoogleSignin();
     GoogleSignin.configure({ webClientId: googleWebClientId });
     if (Platform.OS === "android") {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -232,7 +238,7 @@ export async function logoutUser() {
 
   if (!__DEV__) {
     try {
-      await GoogleSignin.signOut();
+      await getGoogleSignin().signOut();
     } catch {
       // Firebase is already signed out; native provider cleanup is best effort.
     }

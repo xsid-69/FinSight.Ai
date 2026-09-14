@@ -11,21 +11,27 @@ import { RegisterScreen } from "../screens/RegisterScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { AIScreen } from "../screens/AIScreen";
 import { StatementAnalyzerScreen } from "../screens/StatementAnalyzerScreen";
+import { SavedStatementsScreen } from "../screens/SavedStatementsScreen";
+import { StatementDetailScreen } from "../screens/StatementDetailScreen";
 import { AIAssistantScreen } from "../screens/AIAssistantScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
+import { HomePagerCoordinatorProvider } from "../screens/home/HomePagerCoordinator";
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 
 function MainTabs() {
   return (
-    <Tab.Navigator
-      screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
-      tabBar={(props) => <FloatingDock {...props} />}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="AI" component={AIScreen} />
-    </Tab.Navigator>
+    <HomePagerCoordinatorProvider>
+      <Tab.Navigator
+        backBehavior="history"
+        screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+        tabBar={(props) => <FloatingDock {...props} />}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="AI" component={AIScreen} />
+      </Tab.Navigator>
+    </HomePagerCoordinatorProvider>
   );
 }
 
@@ -35,7 +41,7 @@ export function AppNavigator() {
   return (
     <NavigationContainer>
       <RootStack.Navigator
-        key={user ? "authenticated" : "public"}
+        key={user?.uid ? `authenticated-${user.uid}` : "public"}
         initialRouteName={user ? "Main" : "Onboarding"}
         screenOptions={{ headerShown: false }}
       >
@@ -51,6 +57,16 @@ export function AppNavigator() {
               name="Analyzer"
               component={StatementAnalyzerScreen}
               options={{ presentation: "modal", animation: "slide_from_bottom" }}
+            />
+            <RootStack.Screen
+              name="Statements"
+              component={SavedStatementsScreen}
+              options={{ presentation: "card", animation: "slide_from_right" }}
+            />
+            <RootStack.Screen
+              name="StatementDetail"
+              component={StatementDetailScreen}
+              options={{ presentation: "card", animation: "slide_from_right" }}
             />
             <RootStack.Screen
               name="Profile"

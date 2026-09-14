@@ -13,8 +13,8 @@ export const palette = {
   navy: "#18233D", // primary text
   navy2: "#39435C", // secondary navy
   ink2: "#687187", // secondary text
-  muted: "#8A91A2", // muted labels
-  muted2: "#9298A7", // faint
+  muted: "#626B80", // accessible muted labels
+  muted2: "#687187", // quiet text that remains AA-readable
 
   // Surfaces
   background: "#F7F8FA",

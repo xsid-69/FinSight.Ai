@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { ScrollView, useWindowDimensions, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
+import { Linking, ScrollView, useWindowDimensions, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
 import { YStack, XStack, Text, View } from "tamagui";
 import { MotiView } from "moti";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -99,7 +99,21 @@ export function OnboardingScreen({ navigation }: { navigation?: any }) {
         <Text fontSize={14} fontWeight="700" color="$navy2" pressStyle={{ opacity: 0.6 }} onPress={goLogin}>
           Skip
         </Text>
-        <View width={38} height={38} borderRadius={19} backgroundColor="rgba(24,35,61,0.06)" alignItems="center" justifyContent="center" pressStyle={{ scale: 0.92 }} onPress={() => Haptics.selectionAsync()}>
+        <View
+          width={40}
+          height={40}
+          borderRadius={20}
+          backgroundColor="rgba(24,35,61,0.06)"
+          alignItems="center"
+          justifyContent="center"
+          pressStyle={{ scale: 0.92 }}
+          onPress={() => {
+            Haptics.selectionAsync();
+            Linking.openSettings();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Open Android app settings"
+        >
           <Settings size={19} color="$navy2" strokeWidth={2} />
         </View>
       </XStack>
