@@ -1,5 +1,5 @@
-import React, { memo, useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { memo, useMemo, useState } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 import {
   Car,
   CreditCard,
@@ -10,6 +10,11 @@ import {
 } from "@tamagui/lucide-icons";
 
 import {
+  BRAND_DOMAINS,
+  merchantLogoAssetForKey,
+  merchantLogoUrlForKey,
+} from "./merchantLogoAssets";
+import {
   BRAND_VISUALS,
   normalizeMerchantWords,
   resolveMerchantBrandVisual,
@@ -17,6 +22,7 @@ import {
 } from "../services/merchantBrandRegistry";
 
 export {
+  BRAND_DOMAINS,
   BRAND_VISUALS,
   resolveMerchantBrandVisual,
   sanitizeMerchantName,
@@ -65,14 +71,13 @@ function merchantInitials(merchantName) {
   return null;
 }
 
-function brandMarkSize(mark, avatarSize) {
-  if (mark.length <= 1) return Math.max(14, Math.round(avatarSize * 0.46));
-  if (mark.length === 2) return Math.max(11, Math.round(avatarSize * 0.32));
-  return Math.max(9, Math.round(avatarSize * 0.23));
+export function resolveMerchantLogoUrl(merchantName, merchantKey) {
+  const brandVisual = resolveMerchantBrandVisual(merchantName, merchantKey);
+  return merchantLogoUrlForKey(brandVisual?.key);
 }
 
 /**
- * Circular local merchant mark with a stable category fallback.
+ * Circular company logo with progressive local and network fallbacks.
  * The avatar is decorative because its transaction row announces the merchant.
  *
  * @param {{
@@ -88,22 +93,43 @@ function MerchantAvatarComponent({ merchantName, merchantKey, category, size = 4
     () => resolveMerchantBrandVisual(merchantName, merchantKey),
     [merchantKey, merchantName],
   );
+  const logoAsset = useMemo(
+    () => merchantLogoAssetForKey(brandVisual?.key),
+    [brandVisual?.key],
+  );
+  const remoteLogoUrl = useMemo(
+    () => merchantLogoUrlForKey(brandVisual?.key),
+    [brandVisual?.key],
+  );
+  const remoteLogoSource = useMemo(
+    () => (remoteLogoUrl ? { uri: remoteLogoUrl } : null),
+    [remoteLogoUrl],
+  );
   const initials = useMemo(() => merchantInitials(merchantName), [merchantName]);
+  const [loadedLogoUrl, setLoadedLogoUrl] = useState(null);
+  const [failedLogoUrl, setFailedLogoUrl] = useState(null);
   const fallback = CATEGORY_FALLBACKS[String(category ?? "").toUpperCase()]
     ?? DEFAULT_FALLBACK;
   const radius = avatarSize / 2;
+  const localImageSize = logoAsset
+    ? Math.max(1, Math.round(avatarSize * logoAsset.scale))
+    : 0;
+  const remoteImageSize = Math.max(1, Math.round(avatarSize * 0.9));
+  const remoteLogoLoaded = loadedLogoUrl === remoteLogoUrl;
+  const remoteLogoFailed = failedLogoUrl === remoteLogoUrl;
   const FallbackIcon = fallback.Icon;
+  const surfaceSize = {
+    width: avatarSize,
+    height: avatarSize,
+    borderRadius: radius,
+  };
 
   return (
     <View
       style={[
         styles.container,
-        {
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: radius,
-          backgroundColor: fallback.backgroundColor,
-        },
+        surfaceSize,
+        { backgroundColor: fallback.backgroundColor },
       ]}
       accessible={false}
       accessibilityElementsHidden
@@ -130,27 +156,55 @@ function MerchantAvatarComponent({ merchantName, merchantKey, category, size = 4
         />
       )}
 
-      {brandVisual ? (
+      {logoAsset ? (
         <View
+          pointerEvents="none"
           style={[
-            styles.brandSurface,
-            { backgroundColor: brandVisual.backgroundColor },
+            styles.logoSurface,
+            surfaceSize,
+            { backgroundColor: logoAsset.backgroundColor },
           ]}
         >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            style={[
-              styles.brandMark,
-              {
-                color: brandVisual.foregroundColor,
-                fontSize: brandMarkSize(brandVisual.mark, avatarSize),
-                lineHeight: Math.round(avatarSize * 0.58),
-              },
-            ]}
-          >
-            {brandVisual.mark}
-          </Text>
+          <Image
+            source={logoAsset.source}
+            style={{ width: localImageSize, height: localImageSize }}
+            resizeMode={logoAsset.resizeMode}
+            fadeDuration={0}
+            accessible={false}
+          />
+        </View>
+      ) : null}
+
+      {remoteLogoSource && !remoteLogoFailed ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.logoSurface,
+            styles.remoteLogoSurface,
+            surfaceSize,
+            { opacity: remoteLogoLoaded ? 1 : 0 },
+          ]}
+        >
+          <Image
+            key={remoteLogoUrl}
+            source={remoteLogoSource}
+            style={{ width: remoteImageSize, height: remoteImageSize }}
+            resizeMode="contain"
+            fadeDuration={0}
+            accessible={false}
+            onLoad={() => {
+              setFailedLogoUrl((currentUrl) => (
+                currentUrl === remoteLogoUrl ? null : currentUrl
+              ));
+              setLoadedLogoUrl(remoteLogoUrl);
+            }}
+            onError={() => {
+              setLoadedLogoUrl((currentUrl) => (
+                currentUrl === remoteLogoUrl ? null : currentUrl
+              ));
+              setFailedLogoUrl(remoteLogoUrl);
+            }}
+          />
         </View>
       ) : null}
     </View>
@@ -169,28 +223,28 @@ export default MerchantAvatar;
 
 const styles = StyleSheet.create({
   container: {
+    position: "relative",
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#D9DDE5",
   },
   initials: {
     fontWeight: "800",
     letterSpacing: 0.45,
     textAlign: "center",
   },
-  brandSurface: {
-    ...StyleSheet.absoluteFillObject,
+  logoSurface: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 3,
+    overflow: "hidden",
   },
-  brandMark: {
-    width: "84%",
-    fontWeight: "900",
-    letterSpacing: -0.3,
-    textAlign: "center",
+  remoteLogoSurface: {
+    zIndex: 2,
+    backgroundColor: "#FFFFFF",
   },
 });
