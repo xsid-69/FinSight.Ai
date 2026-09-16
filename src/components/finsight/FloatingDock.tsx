@@ -6,7 +6,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { XStack, YStack, Text, View } from "tamagui";
+import { XStack, Text, View } from "tamagui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Svg, { Path } from "react-native-svg";
@@ -14,7 +14,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { LayoutDashboard, TrendingUp } from "@tamagui/lucide-icons";
 import type { LucideIcon } from "../IconSquare";
 import { FloatingAIButton } from "./FloatingAIButton";
-import { palette } from "../../constants/colors";
+import { overlays, palette } from "../../constants/colors";
 import {
   isMainTab,
   useOptionalHomePagerCoordinator,
@@ -95,7 +95,7 @@ function DockItem({
       <Pressable
         testID={testID}
         style={({ pressed }) => resolveSideActionStyle(pressed)}
-        android_ripple={{ color: "rgba(235,0,27,0.08)", borderless: false }}
+        android_ripple={{ color: overlays.red08, borderless: false }}
         onPress={onPress}
         accessibilityRole="tab"
         accessibilityLabel={label}
@@ -109,18 +109,18 @@ function DockItem({
           borderRadius={12}
           alignItems="center"
           justifyContent="center"
-          backgroundColor={active ? "rgba(235,0,27,0.10)" : "transparent"}
+          backgroundColor={active ? overlays.red12 : "transparent"}
         >
-          <Icon size={22} color={active ? "$red" : "$secondary"} strokeWidth={active ? 2.4 : 2} />
+          <Icon size={22} color={active ? "$brand" : "$charcoal"} strokeWidth={active ? 2.4 : 2} />
         </View>
         <Text
           testID={`${testID}-label`}
           pointerEvents="none"
           marginTop={SIDE_LABEL_GAP}
           lineHeight={14}
-          fontSize={10.5}
+          fontSize={11}
           fontWeight={active ? "800" : "600"}
-          color={active ? "$red" : "$secondary"}
+          color={active ? "$brand" : "$charcoal"}
           textAlign="center"
         >
           {label}
@@ -195,7 +195,7 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           testID="floating-dock-border-path"
           d={borderPath}
           fill="none"
-          stroke={palette.border}
+          stroke={palette.borderStrong}
           strokeWidth={1}
           strokeLinecap="butt"
           strokeLinejoin="round"
@@ -223,7 +223,7 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
         <Pressable
           testID="floating-dock-ai"
           style={({ pressed }) => [styles.aiSlot, pressed && styles.pressedSlot]}
-          android_ripple={{ color: "rgba(124,108,242,0.10)", borderless: false }}
+          android_ripple={{ color: overlays.orange14, borderless: false }}
           onPress={handleAIPress}
           accessibilityRole="tab"
           accessibilityLabel="FinSight AI"
@@ -244,9 +244,9 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
             position="absolute"
             top={LABEL_TOP}
             lineHeight={14}
-            fontSize={10.5}
+            fontSize={11}
             fontWeight="800"
-            color={aiActive ? "$red" : "$ai"}
+            color={aiActive ? "$brand" : "$ai"}
           >
             AI
           </Text>

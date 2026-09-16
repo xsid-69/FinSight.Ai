@@ -39,6 +39,7 @@ import {
 } from "../../components/charts/StatementCharts";
 import { useAuth } from "../../context/AuthContext";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { brandColors } from "../../theme/mastercard";
 import {
   buildFinancialInsights,
   categoryLabel,
@@ -117,10 +118,12 @@ function displayDate(value: string) {
 function InsightsViewSelector({ activeView, onSelect }: InsightsViewSelectorProps) {
   return (
     <XStack
-      gap={7}
-      padding={5}
+      gap={6}
+      padding={4}
       borderRadius={18}
-      backgroundColor="$surfaceAlt"
+      borderWidth={1}
+      borderColor="$borderColor"
+      backgroundColor="$backgroundStrong"
       accessibilityRole="tablist"
       accessibilityLabel="Insights workspace view"
     >
@@ -217,12 +220,12 @@ function ErrorState({
   onShowAll?: () => void;
 }) {
   return (
-    <Card borderColor="rgba(214,69,69,0.24)" backgroundColor="rgba(214,69,69,0.05)">
+    <Card variant="flat" borderColor="$danger" backgroundColor="$dangerSoft">
       <YStack gap={14}>
         <XStack alignItems="flex-start" gap={11} accessibilityRole="alert">
           <AlertCircle size={20} color="$danger" strokeWidth={2.2} />
           <YStack flex={1} gap={4}>
-            <Text fontSize={15} fontWeight="800" color="$navy">
+            <Text accessibilityRole="header" fontSize={15} fontWeight="800" color="$navy">
               Insights couldn’t load
             </Text>
             <Text fontSize={13} lineHeight={19} color="$navy2">
@@ -236,7 +239,7 @@ function ErrorState({
             minWidth={150}
             minHeight={48}
             borderRadius={14}
-            backgroundColor="$navy"
+            backgroundColor="$redDeep"
             alignItems="center"
             justifyContent="center"
             gap={8}
@@ -245,8 +248,8 @@ function ErrorState({
             accessibilityRole="button"
             accessibilityLabel="Retry loading insights"
           >
-            <RefreshCw size={17} color="white" strokeWidth={2.2} />
-            <Text color="white" fontWeight="800" fontSize={13.5}>
+            <RefreshCw size={17} color="$onBrand" strokeWidth={2.2} />
+            <Text color="$onBrand" fontWeight="800" fontSize={13.5}>
               Try again
             </Text>
           </XStack>
@@ -280,15 +283,15 @@ function ErrorState({
 function RefreshWarning({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <XStack
-      minHeight={52}
+      minHeight={56}
       alignItems="center"
       gap={10}
       paddingLeft={13}
       paddingRight={4}
       borderRadius={15}
       borderWidth={1}
-      borderColor="rgba(215,154,53,0.28)"
-      backgroundColor="rgba(215,154,53,0.09)"
+      borderColor="$gold"
+      backgroundColor="$warningSoft"
     >
       <XStack
         flex={1}
@@ -304,8 +307,8 @@ function RefreshWarning({ message, onRetry }: { message: string; onRetry?: () =>
         </Text>
       </XStack>
       <View
-        width={44}
-        height={44}
+        width={48}
+        height={48}
         borderRadius={12}
         alignItems="center"
         justifyContent="center"
@@ -332,10 +335,10 @@ function ObservationRow({ observation, last }: { observation: InsightObservation
       ? "$warning"
       : "$red";
   const background = observation.tone === "positive"
-    ? "rgba(99,166,74,0.10)"
+    ? "$successSoft"
     : observation.tone === "warning"
-      ? "rgba(215,154,53,0.11)"
-      : "rgba(235,0,27,0.075)";
+      ? "$warningSoft"
+      : "$redSoft";
 
   return (
     <XStack
@@ -466,7 +469,7 @@ function StatementScopePicker({
               accessibilityState={{ selected }}
               accessibilityLabel={`Show ${statement.displayName}`}
             >
-              <FileCheck2 size={17} color={selected ? "white" : "$success"} strokeWidth={2.2} />
+              <FileCheck2 size={17} color={selected ? "$onBrand" : "$red"} strokeWidth={2.2} />
               <Text
                 flexShrink={1}
                 numberOfLines={1}
@@ -508,11 +511,11 @@ function LedgerRow({ transaction }: { transaction: PrivateTransaction }) {
   const merchant = transactionMerchantLabel(transaction);
   return (
     <XStack
-      minHeight={72}
-      paddingVertical={12}
-      paddingHorizontal={14}
-      borderRadius={16}
-      backgroundColor="$backgroundStrong"
+      minHeight={76}
+      paddingVertical={13}
+      paddingHorizontal={4}
+      borderBottomWidth={1}
+      borderBottomColor="$borderColor"
       alignItems="center"
       gap={12}
       accessible
@@ -643,7 +646,7 @@ function ScopedTransactionsWorkspace({
               CSV INSIGHTS WORKSPACE
             </Text>
           </XStack>
-          <Text fontSize={27} lineHeight={33} fontWeight="800" color="$navy" letterSpacing={-0.75}>
+          <Text accessibilityRole="header" fontSize={27} lineHeight={33} fontWeight="800" color="$navy" letterSpacing={-0.75}>
             Transaction ledger
           </Text>
           <Text maxWidth={620} fontSize={13} lineHeight={19} color="$navy2">
@@ -665,7 +668,9 @@ function ScopedTransactionsWorkspace({
 
         <YStack
           borderRadius={20}
-          backgroundColor="$navy"
+          backgroundColor="$heroSurface"
+          borderWidth={1}
+          borderColor="$heroSurfaceRaised"
           padding={16}
           gap={5}
           overflow="hidden"
@@ -679,15 +684,26 @@ function ScopedTransactionsWorkspace({
             width={112}
             height={112}
             borderRadius={56}
-            backgroundColor="rgba(235,0,27,0.16)"
+            backgroundColor="$red"
+            opacity={0.15}
             right={-46}
             top={-58}
           />
-          <Text fontSize={10.5} fontWeight="800" letterSpacing={0.9} color="#C9CEDA">
+          <View
+            position="absolute"
+            width={62}
+            height={62}
+            borderRadius={31}
+            backgroundColor="$orange"
+            opacity={0.12}
+            right={36}
+            bottom={-36}
+          />
+          <Text fontSize={10.5} fontWeight="800" letterSpacing={0.9} color="$onBrand" opacity={0.66}>
             ACTIVE PROVENANCE
           </Text>
-          <Text fontSize={15} fontWeight="800" color="white">{scopeTitle}</Text>
-          <Text maxWidth={570} fontSize={11.5} lineHeight={17} color="#C9CEDA">
+          <Text fontSize={15} fontWeight="800" color="$onBrand">{scopeTitle}</Text>
+          <Text maxWidth={570} fontSize={11.5} lineHeight={17} color="$onBrand" opacity={0.7}>
             {sourceLabel}
           </Text>
         </YStack>
@@ -745,7 +761,7 @@ function ScopedTransactionsWorkspace({
               <XStack
                 padding={13}
                 borderRadius={15}
-                backgroundColor="rgba(215,154,53,0.09)"
+                backgroundColor="$warningSoft"
                 alignItems="flex-start"
                 gap={9}
                 accessible
@@ -774,8 +790,8 @@ function ScopedTransactionsWorkspace({
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Search safe description, category, date or amount"
-                placeholderTextColor="#626B80"
-                selectionColor="#EB001B"
+                placeholderTextColor={brandColors.textMuted}
+                selectionColor={brandColors.redIdentity}
                 autoCorrect={false}
                 autoCapitalize="none"
                 returnKeyType="search"
@@ -784,8 +800,8 @@ function ScopedTransactionsWorkspace({
               />
               {query ? (
                 <View
-                  width={44}
-                  height={44}
+                  width={48}
+                  height={48}
                   borderRadius={12}
                   alignItems="center"
                   justifyContent="center"
@@ -951,8 +967,8 @@ function StatementManifestCard({
     <YStack
       borderRadius={21}
       borderWidth={1}
-      borderColor={linked ? "rgba(99,166,74,0.30)" : "$borderColor"}
-      backgroundColor="$backgroundStrong"
+      borderColor={linked ? "$red" : "$borderColor"}
+      backgroundColor={linked ? "$redSoft" : "$backgroundStrong"}
       padding={16}
       gap={14}
     >
@@ -961,7 +977,7 @@ function StatementManifestCard({
           width={46}
           height={52}
           borderRadius={14}
-          backgroundColor="rgba(235,0,27,0.075)"
+          backgroundColor="$redSoft"
           alignItems="center"
           justifyContent="center"
         >
@@ -973,7 +989,7 @@ function StatementManifestCard({
               {statement.displayName}
             </Text>
             {linked ? (
-              <Text fontSize={9.5} fontWeight="800" letterSpacing={0.55} color="$navy2">
+              <Text fontSize={9.5} fontWeight="800" letterSpacing={0.55} color="$redDeep">
                 LINKED SCOPE
               </Text>
             ) : null}
@@ -994,7 +1010,7 @@ function StatementManifestCard({
           minWidth={150}
           minHeight={48}
           borderRadius={14}
-          backgroundColor={linked ? "$surfaceAlt" : "$navy"}
+          backgroundColor={linked ? "$backgroundStrong" : "$redDeep"}
           alignItems="center"
           justifyContent="center"
           gap={7}
@@ -1094,7 +1110,7 @@ function StatementsWorkspace({
               CSV INSIGHTS WORKSPACE
             </Text>
           </XStack>
-          <Text fontSize={27} lineHeight={33} fontWeight="800" color="$navy" letterSpacing={-0.75}>
+          <Text accessibilityRole="header" fontSize={27} lineHeight={33} fontWeight="800" color="$navy" letterSpacing={-0.75}>
             Saved statements
           </Text>
           <Text maxWidth={630} fontSize={13} lineHeight={19} color="$navy2">
@@ -1113,7 +1129,7 @@ function StatementsWorkspace({
             <XStack
               padding={14}
               borderRadius={16}
-              backgroundColor="rgba(214,69,69,0.07)"
+              backgroundColor="$dangerSoft"
               alignItems="flex-start"
               gap={10}
               accessible
@@ -1151,7 +1167,7 @@ function StatementsWorkspace({
             alignItems="center"
             gap={10}
           >
-            <View width={56} height={56} borderRadius={18} backgroundColor="rgba(235,0,27,0.075)" alignItems="center" justifyContent="center">
+            <View width={56} height={56} borderRadius={18} backgroundColor="$redSoft" alignItems="center" justifyContent="center">
               <FileSpreadsheet size={24} color="$red" strokeWidth={2.1} />
             </View>
             <Text fontSize={18} fontWeight="800" color="$navy" textAlign="center">No saved statements yet</Text>
@@ -1183,7 +1199,7 @@ function StatementsWorkspace({
               <XStack
                 padding={13}
                 borderRadius={15}
-                backgroundColor="rgba(215,154,53,0.09)"
+                backgroundColor="$warningSoft"
                 alignItems="flex-start"
                 gap={9}
                 accessible
@@ -1402,12 +1418,12 @@ export function InsightsContent({
 
         <YStack gap={7} marginTop={21} marginBottom={15}>
           <XStack alignItems="center" gap={7}>
-            <Landmark size={15} color="$success" strokeWidth={2.2} />
+            <Landmark size={15} color="$orangeDeep" strokeWidth={2.2} />
             <Text fontSize={12.5} color="$navy2" fontWeight="700">
               {accountName === "Your" ? "Your private account" : `${accountName}’s private account`}
             </Text>
           </XStack>
-          <Text fontSize={26} lineHeight={32} fontWeight="800" color="$navy" letterSpacing={-0.7}>
+          <Text accessibilityRole="header" fontSize={26} lineHeight={32} fontWeight="800" color="$navy" letterSpacing={-0.7}>
             {scopeTitle}
           </Text>
           <Text maxWidth={650} fontSize={13.5} color="$navy2" lineHeight={20}>
@@ -1462,7 +1478,7 @@ export function InsightsContent({
                 width={56}
                 height={56}
                 borderRadius={18}
-                backgroundColor="rgba(235,0,27,0.075)"
+                backgroundColor="$redSoft"
                 alignItems="center"
                 justifyContent="center"
               >
@@ -1512,7 +1528,9 @@ export function InsightsContent({
 
               <YStack
                 borderRadius={24}
-                backgroundColor="$navy"
+                backgroundColor="$heroSurface"
+                borderWidth={1}
+                borderColor="$heroSurfaceRaised"
                 padding={18}
                 gap={17}
                 overflow="hidden"
@@ -1525,14 +1543,25 @@ export function InsightsContent({
                   width={170}
                   height={170}
                   borderRadius={85}
-                  backgroundColor="rgba(235,0,27,0.14)"
+                  backgroundColor="$red"
+                  opacity={0.14}
                   right={-72}
                   top={-92}
                 />
+                <View
+                  position="absolute"
+                  width={74}
+                  height={74}
+                  borderRadius={37}
+                  backgroundColor="$orange"
+                  opacity={0.1}
+                  right={46}
+                  bottom={-42}
+                />
                 <XStack alignItems="flex-start" justifyContent="space-between" gap={14}>
                   <YStack flex={1} gap={4}>
-                    <Text fontSize={12.5} color="#C9CEDA">Financial position</Text>
-                    <Text fontSize={17} lineHeight={23} fontWeight="800" color="white">
+                    <Text fontSize={12.5} color="$onBrand" opacity={0.68}>Financial position</Text>
+                    <Text fontSize={17} lineHeight={23} fontWeight="800" color="$onBrand">
                       {scopedInsights.netCashFlow >= 0
                         ? "Money in stayed ahead of spending"
                         : "Spending ran ahead of money in"}
@@ -1543,42 +1572,55 @@ export function InsightsContent({
                     kind={scopedInsights.netCashFlow >= 0 ? "credit" : "debit"}
                     signed
                     size={18}
-                    color="white"
-                    decColor="#C9CEDA"
+                    color={brandColors.white}
+                    decColor={brandColors.borderStrong}
                   />
                 </XStack>
 
-                <XStack gap={14} flexWrap="wrap">
-                  <YStack flex={1} minWidth={124} gap={5}>
-                    <Text fontSize={12} color="#C9CEDA">Money in</Text>
+                <XStack gap={10} flexWrap="wrap">
+                  <YStack
+                    flex={1}
+                    minWidth={124}
+                    padding={12}
+                    borderRadius={14}
+                    backgroundColor="$heroSurfaceRaised"
+                    gap={5}
+                  >
+                    <Text fontSize={12} color="$onBrand" opacity={0.66}>Money in</Text>
                     <Money
                       amount={scopedInsights.totalIncome}
                       kind="credit"
                       size={15.5}
-                      color="white"
-                      decColor="#C9CEDA"
+                      color={brandColors.white}
+                      decColor={brandColors.borderStrong}
                     />
                   </YStack>
-                  <View width={1} minHeight={42} backgroundColor="rgba(255,255,255,0.14)" />
-                  <YStack flex={1} minWidth={124} gap={5}>
-                    <Text fontSize={12} color="#C9CEDA">Money out</Text>
+                  <YStack
+                    flex={1}
+                    minWidth={124}
+                    padding={12}
+                    borderRadius={14}
+                    backgroundColor="$heroSurfaceRaised"
+                    gap={5}
+                  >
+                    <Text fontSize={12} color="$onBrand" opacity={0.66}>Money out</Text>
                     <Money
                       amount={scopedInsights.totalSpent}
                       kind="none"
                       size={15.5}
-                      color="white"
-                      decColor="#C9CEDA"
+                      color={brandColors.white}
+                      decColor={brandColors.borderStrong}
                     />
                   </YStack>
                 </XStack>
 
                 <XStack alignItems="center" gap={8}>
                   {scopedInsights.savingsRate !== null && scopedInsights.savingsRate >= 0 ? (
-                    <TrendingUp size={16} color="#8AD17A" strokeWidth={2.2} />
+                    <TrendingUp size={16} color="$success" strokeWidth={2.2} />
                   ) : (
-                    <TrendingDown size={16} color="#FF8D98" strokeWidth={2.2} />
+                    <TrendingDown size={16} color="$danger" strokeWidth={2.2} />
                   )}
-                  <Text flex={1} fontSize={12.5} lineHeight={18} color="#D8DCE5">
+                  <Text flex={1} fontSize={12.5} lineHeight={18} color="$onBrand" opacity={0.76}>
                     {scopedInsights.savingsRate === null
                       ? "No money-in records were available for a cash-flow rate."
                       : `${Math.abs(Math.round(scopedInsights.savingsRate))}% ${scopedInsights.savingsRate >= 0 ? "of money in remained after spending" : "more was spent than came in"}.`}
@@ -1589,7 +1631,7 @@ export function InsightsContent({
               {scopedInsights.monthlyActivity.length > 0 ? (
                 <YStack gap={11}>
                   <YStack gap={3}>
-                    <Text fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
+                    <Text accessibilityRole="header" fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
                       Cash-flow movement
                     </Text>
                     <Text fontSize={12.5} lineHeight={18} color="$ink2">
@@ -1608,7 +1650,7 @@ export function InsightsContent({
               {scopedInsights.categoryBreakdown.length > 0 ? (
                 <YStack gap={11}>
                   <YStack gap={3}>
-                    <Text fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
+                    <Text accessibilityRole="header" fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
                       Where spending went
                     </Text>
                     <Text fontSize={12.5} lineHeight={18} color="$ink2">
@@ -1622,10 +1664,15 @@ export function InsightsContent({
               ) : null}
 
               <YStack gap={11}>
-                <Text fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
+                <Text accessibilityRole="header" fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
                   Signals worth reviewing
                 </Text>
-                <Card>
+                <YStack
+                  paddingVertical={16}
+                  borderTopWidth={1}
+                  borderBottomWidth={1}
+                  borderColor="$borderColor"
+                >
                   <SignalRow
                     icon={Store}
                     label="Top merchant"
@@ -1653,14 +1700,19 @@ export function InsightsContent({
                     detail={`${scopedInsights.recurringMerchants.length} recurring merchant${scopedInsights.recurringMerchants.length === 1 ? "" : "s"}`}
                     last
                   />
-                </Card>
+                </YStack>
               </YStack>
 
               <YStack gap={11}>
-                <Text fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
+                <Text accessibilityRole="header" fontSize={18} fontWeight="800" color="$navy" letterSpacing={-0.35}>
                   What this activity shows
                 </Text>
-                <Card>
+                <YStack
+                  paddingVertical={16}
+                  borderTopWidth={1}
+                  borderBottomWidth={1}
+                  borderColor="$borderColor"
+                >
                   {scopedInsights.observations.map((observation, index) => (
                     <ObservationRow
                       key={observation.id}
@@ -1668,7 +1720,7 @@ export function InsightsContent({
                       last={index === scopedInsights.observations.length - 1}
                     />
                   ))}
-                </Card>
+                </YStack>
                 <Text fontSize={12} lineHeight={17} color="$ink2">
                   Based on {scopedTransactions.length.toLocaleString("en-IN")} privacy-safe transaction{scopedTransactions.length === 1 ? "" : "s"} from {scopedInsights.periodLabel}. These are deterministic patterns, not financial advice.
                 </Text>
@@ -1680,12 +1732,12 @@ export function InsightsContent({
                 padding={14}
                 borderRadius={16}
                 borderWidth={1}
-                borderColor="rgba(99,166,74,0.24)"
-                backgroundColor="rgba(99,166,74,0.08)"
+                borderColor="$gold"
+                backgroundColor="$orangeSoft"
                 accessible
                 accessibilityRole="summary"
               >
-                <ShieldCheck size={18} color="$success" strokeWidth={2.2} />
+                <ShieldCheck size={18} color="$orangeDeep" strokeWidth={2.2} />
                 <Text flex={1} fontSize={12.5} lineHeight={18} color="$navy2">
                   Stored under this signed-in account: sanitized dates, amounts, directions, categories, and masked descriptions. The original CSV and account identifiers are not stored.
                 </Text>
@@ -1713,7 +1765,7 @@ export function InsightsContent({
                   width={40}
                   height={40}
                   borderRadius={13}
-                  backgroundColor="rgba(235,0,27,0.08)"
+                  backgroundColor="$redSoft"
                   alignItems="center"
                   justifyContent="center"
                 >
@@ -1759,7 +1811,7 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 0,
     paddingVertical: 0,
-    color: "#18233D",
+    color: brandColors.charcoal,
     fontSize: 13,
     fontWeight: "600",
   },

@@ -1,5 +1,10 @@
 module.exports = function (api) {
-  api.cache(true);
+  const isJestCaller = api.caller((caller) => caller?.name === "babel-jest");
+  const isTest = isJestCaller
+    || process.env.NODE_ENV === "test"
+    || process.env.BABEL_ENV === "test"
+    || process.env.JEST_WORKER_ID !== undefined;
+
   return {
     presets: ["babel-preset-expo"],
     plugins: [
@@ -8,8 +13,8 @@ module.exports = function (api) {
         {
           components: ["tamagui"],
           config: "./tamagui.config.ts",
-          logTimings: process.env.NODE_ENV !== "test",
-          disable: process.env.NODE_ENV === "test",
+          logTimings: !isTest && process.env.NODE_ENV !== "test",
+          disable: isTest || process.env.NODE_ENV === "test",
           disableExtraction: process.env.NODE_ENV === "development",
         },
       ],

@@ -474,7 +474,17 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
         onCommitTab={handleCommitTab}
         pageProgress={pageProgress}
         pages={[
-          <OverviewContent key="Overview" navigation={navigation} />,
+          <OverviewContent
+            key="Overview"
+            navigation={navigation}
+            transactions={transactionState.transactions}
+            insights={transactionInsights}
+            ignoredCount={transactionState.ignoredCount}
+            loading={transactionState.loading}
+            error={transactionState.error}
+            refreshError={transactionState.refreshError}
+            onRetry={() => void refreshTransactions()}
+          />,
           <TransactionsContent key="Transactions" navigation={navigation} />,
           <InsightsContent
             key="Insights"

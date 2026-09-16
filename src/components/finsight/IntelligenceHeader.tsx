@@ -13,7 +13,7 @@ import {
   UserRound,
 } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
-import { headerGradient } from "../../constants/colors";
+import { headerGradient, overlays, palette } from "../../constants/colors";
 import { Wordmark } from "./Wordmark";
 import { HeaderNavigation, type MainTab } from "./HeaderNavigation";
 
@@ -53,8 +53,8 @@ function MenuRow({ icon: Icon, label, danger, onPress }: { icon: any; label: str
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Icon size={18} color={danger ? "$danger" : "$navy2"} strokeWidth={2} />
-      <Text fontSize={14.5} fontWeight="600" color={danger ? "$danger" : "$navy"}>
+      <Icon size={18} color={danger ? "$danger" : "$secondary"} strokeWidth={2} />
+      <Text fontSize={14.5} fontWeight="600" color={danger ? "$danger" : "$charcoal"}>
         {label}
       </Text>
     </XStack>
@@ -97,18 +97,39 @@ export function IntelligenceHeader({
   return (
     <YStack>
       <LinearGradient colors={headerGradient as unknown as [string, string, string]} start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }} style={FILL} />
-      <View position="absolute" top={-40} right={-30} width={220} height={180} borderRadius={110} backgroundColor="rgba(255,255,255,0.10)" />
+      <View
+        position="absolute"
+        top={-74}
+        right={-26}
+        width={150}
+        height={150}
+        borderRadius={75}
+        backgroundColor={palette.orange}
+        opacity={0.22}
+      />
+      <View
+        position="absolute"
+        top={-38}
+        right={68}
+        width={104}
+        height={104}
+        borderRadius={52}
+        backgroundColor={palette.gold}
+        opacity={0.17}
+      />
 
       <YStack paddingTop={insets.top + 14} paddingHorizontal={SCREEN_H} paddingBottom={12}>
         {pushed ? (
-          <YStack alignItems="center" justifyContent="center" height={42}>
+          <YStack alignItems="center" justifyContent="center" height={48}>
             <View
               position="absolute"
               left={0}
-              width={42}
-              height={42}
-              borderRadius={21}
-              backgroundColor="rgba(255,255,255,0.16)"
+              width={48}
+              height={48}
+              borderRadius={24}
+              backgroundColor={overlays.charcoal12}
+              borderWidth={1}
+              borderColor={overlays.onBrand24}
               alignItems="center"
               justifyContent="center"
               pressStyle={{ scale: 0.92 }}
@@ -123,19 +144,19 @@ export function IntelligenceHeader({
             </Text>
           </YStack>
         ) : (
-          <XStack alignItems="center" justifyContent="space-between" gap={14}>
+          <XStack alignItems="center" justifyContent="space-between" gap={10}>
             <Wordmark />
-            <XStack alignItems="center" gap={9}>
+            <XStack alignItems="center" gap={8}>
               {onOpenCsvWorkspace ? (
                 <XStack
                   minWidth={68}
-                  minHeight={44}
-                  height={44}
+                  minHeight={48}
+                  height={48}
                   paddingHorizontal={12}
-                  borderRadius={15}
-                  backgroundColor={csvWorkspaceSelected ? "white" : "rgba(255,255,255,0.16)"}
+                  borderRadius={16}
+                  backgroundColor={csvWorkspaceSelected ? palette.surface : overlays.charcoal12}
                   borderWidth={1}
-                  borderColor={csvWorkspaceSelected ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.24)"}
+                  borderColor={csvWorkspaceSelected ? palette.surface : overlays.onBrand24}
                   alignItems="center"
                   justifyContent="center"
                   gap={6}
@@ -147,11 +168,11 @@ export function IntelligenceHeader({
                 >
                   <FileSpreadsheet
                     size={17}
-                    color={csvWorkspaceSelected ? "$red" : "white"}
+                    color={csvWorkspaceSelected ? "$brand" : "white"}
                     strokeWidth={2.2}
                   />
                   <Text
-                    color={csvWorkspaceSelected ? "$navy" : "white"}
+                    color={csvWorkspaceSelected ? "$charcoal" : "white"}
                     fontSize={11.5}
                     fontWeight="900"
                     letterSpacing={0.45}
@@ -161,12 +182,12 @@ export function IntelligenceHeader({
                 </XStack>
               ) : null}
               <View
-                width={44}
-                height={44}
-                borderRadius={22}
-                backgroundColor="rgba(255,255,255,0.16)"
+                width={48}
+                height={48}
+                borderRadius={24}
+                backgroundColor={overlays.charcoal12}
                 borderWidth={1}
-                borderColor="rgba(255,255,255,0.24)"
+                borderColor={overlays.onBrand24}
                 alignItems="center"
                 justifyContent="center"
                 pressStyle={{ scale: 0.92, opacity: 0.85 }}
@@ -195,7 +216,7 @@ export function IntelligenceHeader({
         ) : !pushed && subtitle ? (
           <>
             <View height={22} />
-            <Text color="rgba(255,255,255,0.86)" fontSize={13} fontWeight="600">
+            <Text color="white" fontSize={13} fontWeight="600">
               {subtitle}
             </Text>
           </>
@@ -204,21 +225,21 @@ export function IntelligenceHeader({
 
       <Modal visible={menuOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setMenuOpen(false)}>
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(11,18,32,0.18)" }}
+          style={{ flex: 1, backgroundColor: overlays.scrim }}
           onPress={() => setMenuOpen(false)}
           accessibilityViewIsModal
         >
           <View
             position="absolute"
-            top={insets.top + 62}
+            top={insets.top + 66}
             right={SCREEN_H}
             width={224}
             backgroundColor="$backgroundStrong"
             borderRadius={16}
             borderWidth={1}
-            borderColor="$borderColor"
+            borderColor="$borderStrong"
             paddingVertical={6}
-            shadowColor="#0B1220"
+            shadowColor={palette.charcoal}
             shadowOffset={{ width: 0, height: 12 }}
             shadowOpacity={0.16}
             shadowRadius={24}

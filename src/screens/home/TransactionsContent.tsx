@@ -39,7 +39,7 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
 
   const motion = reducedMotion
     ? { type: "timing" as const, duration: 1 }
-    : { type: "timing" as const, duration: 190 };
+    : { type: "timing" as const, duration: 220 };
 
   return (
     <ScrollView
@@ -63,7 +63,14 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
                 SOURCE STATUS
               </Text>
             </XStack>
-            <Text fontSize={29} lineHeight={35} fontWeight="800" color="$navy" letterSpacing={-0.9}>
+            <Text
+              accessibilityRole="header"
+              fontSize={29}
+              lineHeight={35}
+              fontWeight="800"
+              color="$navy"
+              letterSpacing={-0.9}
+            >
               Message activity
             </Text>
             <Text maxWidth={570} fontSize={13.5} lineHeight={20} color="$navy2">
@@ -80,31 +87,32 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
           <YStack
             minHeight={266}
             borderRadius={27}
-            backgroundColor="$navy"
+            backgroundColor="$heroSurface"
             borderWidth={1}
-            borderColor="rgba(255,255,255,0.08)"
+            borderColor="$heroSurfaceRaised"
             padding={20}
             gap={20}
             overflow="hidden"
           >
             <View
               position="absolute"
-              width={210}
-              height={210}
-              borderRadius={105}
-              backgroundColor="rgba(235,0,27,0.16)"
-              right={-90}
-              top={-116}
+              width={206}
+              height={206}
+              borderRadius={103}
+              backgroundColor="$red"
+              opacity={0.14}
+              right={-88}
+              top={-112}
             />
             <View
               position="absolute"
-              width={104}
-              height={104}
-              borderRadius={52}
-              borderWidth={1}
-              borderColor="rgba(255,255,255,0.09)"
-              right={22}
-              bottom={-56}
+              width={110}
+              height={110}
+              borderRadius={55}
+              backgroundColor="$orange"
+              opacity={0.12}
+              right={18}
+              bottom={-64}
             />
 
             <XStack alignItems="flex-start" justifyContent="space-between" gap={14}>
@@ -112,9 +120,9 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
                 width={58}
                 height={58}
                 borderRadius={29}
-                backgroundColor="rgba(255,255,255,0.10)"
+                backgroundColor="$heroSurfaceRaised"
                 borderWidth={1}
-                borderColor="rgba(255,255,255,0.13)"
+                borderColor="$borderStrong"
                 alignItems="center"
                 justifyContent="center"
               >
@@ -124,64 +132,71 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
                   height={42}
                   borderRadius={21}
                   borderWidth={1}
-                  borderColor="rgba(255,255,255,0.10)"
+                  borderColor="$borderStrong"
                 />
-                <MessageSquareText size={24} color="white" strokeWidth={2.05} />
+                <MessageSquareText size={24} color="$onBrand" strokeWidth={2.05} />
               </View>
               <XStack
-                minHeight={36}
-                paddingHorizontal={12}
-                borderRadius={18}
-                backgroundColor="rgba(255,255,255,0.09)"
+                minHeight={48}
+                paddingHorizontal={13}
+                borderRadius={16}
+                backgroundColor="$heroSurfaceRaised"
                 borderWidth={1}
-                borderColor="rgba(255,255,255,0.10)"
+                borderColor="$borderStrong"
                 alignItems="center"
                 gap={7}
                 accessible
                 accessibilityRole="summary"
                 accessibilityLabel="Connection status: Not connected"
               >
-                <View width={7} height={7} borderRadius={4} backgroundColor="#AEB5C3" />
-                <Text fontSize={10.5} fontWeight="800" letterSpacing={0.4} color="#F1F3F6">
+                <View width={7} height={7} borderRadius={4} backgroundColor="$borderStrong" />
+                <Text fontSize={10.5} fontWeight="800" letterSpacing={0.4} color="$onBrand">
                   Not connected
                 </Text>
               </XStack>
             </XStack>
 
             <YStack gap={7}>
-              <Text fontSize={22} lineHeight={28} fontWeight="800" color="white" letterSpacing={-0.5}>
+              <Text
+                accessibilityRole="header"
+                fontSize={22}
+                lineHeight={28}
+                fontWeight="800"
+                color="$onBrand"
+                letterSpacing={-0.5}
+              >
                 Your inbox remains unread
               </Text>
-              <Text maxWidth={560} fontSize={13.5} lineHeight={20} color="#C9CEDA">
+              <Text maxWidth={560} fontSize={13.5} lineHeight={20} color="$onBrand" opacity={0.7}>
                 FinSight does not currently read your inbox. A secure message listener is unavailable in this build.
               </Text>
             </YStack>
 
             <XStack
-              minHeight={62}
+              minHeight={64}
               paddingHorizontal={14}
               borderRadius={17}
-              backgroundColor="rgba(255,255,255,0.08)"
+              backgroundColor="$heroSurfaceRaised"
               borderWidth={1}
-              borderColor="rgba(255,255,255,0.08)"
+              borderColor="$borderStrong"
               alignItems="center"
               gap={12}
             >
               <View
-                width={38}
-                height={38}
-                borderRadius={19}
-                backgroundColor="rgba(235,0,27,0.22)"
+                width={40}
+                height={40}
+                borderRadius={20}
+                backgroundColor="$red"
                 alignItems="center"
                 justifyContent="center"
               >
-                <RadioTower size={18} color="white" strokeWidth={2.1} />
+                <RadioTower size={18} color="$onBrand" strokeWidth={2.1} />
               </View>
               <YStack flex={1} gap={2}>
-                <Text fontSize={12.5} fontWeight="800" color="white">
+                <Text fontSize={12.5} fontWeight="800" color="$onBrand">
                   No listener is running
                 </Text>
-                <Text fontSize={11.5} lineHeight={16} color="#C9CEDA">
+                <Text fontSize={11.5} lineHeight={16} color="$onBrand" opacity={0.68}>
                   No real-time monitoring is active on this device.
                 </Text>
               </YStack>
@@ -203,7 +218,7 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
             overflow="hidden"
           >
             <XStack
-              minHeight={58}
+              minHeight={64}
               paddingHorizontal={16}
               alignItems="center"
               gap={12}
@@ -214,14 +229,14 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
               accessibilityState={{ expanded: privacyOpen }}
             >
               <View
-                width={38}
-                height={38}
+                width={40}
+                height={40}
                 borderRadius={13}
-                backgroundColor="rgba(99,166,74,0.10)"
+                backgroundColor="$orangeSoft"
                 alignItems="center"
                 justifyContent="center"
               >
-                <Fingerprint size={18} color="$success" strokeWidth={2.1} />
+                <Fingerprint size={19} color="$orangeDeep" strokeWidth={2.1} />
               </View>
               <YStack flex={1} gap={2}>
                 <Text fontSize={13.5} fontWeight="800" color="$navy">
@@ -242,7 +257,7 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
               <MotiView
                 from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : -5 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: "timing", duration: reducedMotion ? 1 : 170 }}
+                transition={{ type: "timing", duration: reducedMotion ? 1 : 160 }}
               >
                 <YStack
                   borderTopWidth={1}
@@ -253,15 +268,15 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
                   gap={13}
                 >
                   <XStack alignItems="flex-start" gap={11}>
-                    <LockKeyhole size={18} color="$navy2" strokeWidth={2.1} />
+                    <LockKeyhole size={18} color="$orangeDeep" strokeWidth={2.1} />
                     <Text flex={1} fontSize={12.5} lineHeight={18} color="$navy2">
                       FinSight would need an explicit, secure source connection before message-derived activity could appear here. This build has no inbox permission or background listener.
                     </Text>
                   </XStack>
                   <XStack
-                    minHeight={50}
+                    minHeight={52}
                     borderRadius={14}
-                    backgroundColor="$navy"
+                    backgroundColor="$redDeep"
                     alignItems="center"
                     justifyContent="center"
                     gap={8}
@@ -270,8 +285,8 @@ export function TransactionsContent({ navigation }: TransactionsContentProps) {
                     accessibilityRole="button"
                     accessibilityLabel="Open profile security settings"
                   >
-                    <Settings2 size={17} color="white" strokeWidth={2.2} />
-                    <Text color="white" fontSize={13.5} fontWeight="800">
+                    <Settings2 size={17} color="$onBrand" strokeWidth={2.2} />
+                    <Text color="$onBrand" fontSize={13.5} fontWeight="800">
                       Open security settings
                     </Text>
                   </XStack>

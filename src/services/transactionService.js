@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, onSnapshot } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 import { getFirebaseErrorCode, privateCloudReadMessage } from "./firebaseErrors";
@@ -82,19 +82,7 @@ export function isCleanStoredTransaction(data) {
   );
 }
 
-export async function loadPrivateTransactions(userId) {
-  assertUserId(userId);
-
-  let snapshot;
-  try {
-    snapshot = await getDocs(collection(db, "users", userId, "transactions"));
-  } catch (error) {
-    throw new TransactionLoadError(
-      privateCloudReadMessage("your private transactions", error),
-      error,
-    );
-  }
-
+function readPrivateTransactionSnapshot(snapshot) {
   const transactions = [];
   let ignoredCount = 0;
 
@@ -113,6 +101,45 @@ export async function loadPrivateTransactions(userId) {
   );
 
   return { transactions, ignoredCount };
+}
+
+export async function loadPrivateTransactions(userId) {
+  assertUserId(userId);
+
+  let snapshot;
+  try {
+    snapshot = await getDocs(collection(db, "users", userId, "transactions"));
+  } catch (error) {
+    throw new TransactionLoadError(
+      privateCloudReadMessage("your private transactions", error),
+      error,
+    );
+  }
+
+  return readPrivateTransactionSnapshot(snapshot);
+}
+
+/**
+ * Subscribes to the signed-in owner's canonical transaction collection.
+ * Every snapshot passes through the same strict validation as one-time loads.
+ */
+export function subscribeToPrivateTransactions(userId, onData, onError) {
+  assertUserId(userId);
+  if (typeof onData !== "function") {
+    throw new TypeError("A transaction snapshot callback is required.");
+  }
+
+  return onSnapshot(
+    collection(db, "users", userId, "transactions"),
+    (snapshot) => onData(readPrivateTransactionSnapshot(snapshot)),
+    (error) => {
+      const loadError = new TransactionLoadError(
+        privateCloudReadMessage("your private transactions", error),
+        error,
+      );
+      if (typeof onError === "function") onError(loadError);
+    },
+  );
 }
 
 /**

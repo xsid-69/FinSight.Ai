@@ -112,7 +112,7 @@ export function CurvedContentSurface({
           animatedProps={animatedBorderProps}
           d={buildTopBorderPath(width, staticX)}
           fill="none"
-          stroke={palette.border}
+          stroke={palette.borderStrong}
           strokeWidth={1}
           strokeLinecap="butt"
           strokeLinejoin="round"

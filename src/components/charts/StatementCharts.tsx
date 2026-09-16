@@ -6,6 +6,7 @@ import { ScrollView, Text, View, XStack, YStack } from "tamagui";
 
 import { Money } from "../banking/Money";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { brandColors, motionDurations } from "../../theme/mastercard";
 import type {
   CategoryInsight,
   MonthlyActivityInsight,
@@ -46,10 +47,10 @@ interface AnimatedHorizontalFillProps {
 }
 
 const RANGE_OPTIONS: NumericMonthRange[] = [3, 6, 12];
-const INCOME_COLOR = "#4D8B42";
-const SPENDING_COLOR = "#EB001B";
-const INACTIVE_BAR_COLOR = "#39435C";
-const MOTION_DURATION = 220;
+const INCOME_COLOR = brandColors.success;
+const SPENDING_COLOR = brandColors.redIdentity;
+const INACTIVE_BAR_COLOR = brandColors.charcoal;
+const MOTION_DURATION = motionDurations.standard;
 
 function compactAmount(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -223,7 +224,7 @@ export function MonthlyCashFlowChart({
     <YStack gap={16}>
       <XStack alignItems="center" justifyContent="space-between" gap={10} flexWrap="wrap">
         <YStack gap={2} flex={1} minWidth={180}>
-          <Text fontSize={14} fontWeight="800" color="$navy">
+          <Text accessibilityRole="header" fontSize={14} fontWeight="800" color="$navy">
             Money in vs money out
           </Text>
           <Text fontSize={12.5} color="$ink2" lineHeight={16}>
@@ -247,18 +248,18 @@ export function MonthlyCashFlowChart({
               <View
                 key={option}
                 minWidth={48}
-                minHeight={46}
+                minHeight={48}
                 borderRadius={10}
                 alignItems="center"
                 justifyContent="center"
-                backgroundColor={selected ? "$backgroundStrong" : "transparent"}
+                backgroundColor={selected ? "$heroSurface" : "transparent"}
                 onPress={() => selectRange(option)}
                 pressStyle={{ opacity: 0.72, scale: 0.97 }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
                 accessibilityLabel={accessibilityLabel}
               >
-                <Text fontSize={12} fontWeight="800" color={selected ? "$navy" : "$ink2"}>
+                <Text fontSize={12} fontWeight="800" color={selected ? "$onBrand" : "$ink2"}>
                   {label}
                 </Text>
               </View>
@@ -280,7 +281,9 @@ export function MonthlyCashFlowChart({
           <YStack
             padding={14}
             borderRadius={17}
-            backgroundColor="rgba(24,35,61,0.045)"
+            borderWidth={1}
+            borderColor="$gold"
+            backgroundColor="$goldSoft"
             gap={11}
             accessible
             accessibilityRole="summary"
@@ -314,7 +317,7 @@ export function MonthlyCashFlowChart({
                 paddingHorizontal={10}
                 alignItems="center"
                 justifyContent="space-between"
-                backgroundColor="rgba(77,139,66,0.08)"
+                backgroundColor="$successSoft"
               >
                 <Text fontSize={12} color="$navy2">Money in</Text>
                 <Text fontSize={12.5} fontWeight="800" color="$navy">
@@ -329,7 +332,7 @@ export function MonthlyCashFlowChart({
                 paddingHorizontal={10}
                 alignItems="center"
                 justifyContent="space-between"
-                backgroundColor="rgba(235,0,27,0.055)"
+                backgroundColor="$redSoft"
               >
                 <Text fontSize={12} color="$navy2">Money out</Text>
                 <Text fontSize={12.5} fontWeight="800" color="$navy">
@@ -357,7 +360,9 @@ export function MonthlyCashFlowChart({
               borderRadius={13}
               borderWidth={1}
               borderColor={selected ? color : "$borderColor"}
-              backgroundColor={selected ? `${color}12` : "$backgroundStrong"}
+              backgroundColor={selected
+                ? series === "income" ? "$successSoft" : "$redSoft"
+                : "$backgroundStrong"}
               alignItems="center"
               gap={7}
               opacity={cannotHide ? 0.72 : 1}
@@ -426,8 +431,8 @@ export function MonthlyCashFlowChart({
                     paddingTop={5}
                     borderRadius={13}
                     borderWidth={selected ? 1 : 0}
-                    borderColor={selected ? "rgba(24,35,61,0.10)" : "transparent"}
-                    backgroundColor={selected ? "rgba(24,35,61,0.045)" : "transparent"}
+                    borderColor={selected ? "$gold" : "transparent"}
+                    backgroundColor={selected ? "$goldSoft" : "transparent"}
                     onPress={() => selectMonth(month.month)}
                     pressStyle={{ opacity: 0.7, scale: 0.98 }}
                     accessibilityRole="button"
@@ -525,7 +530,7 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
     <YStack gap={16}>
       <XStack alignItems="center" justifyContent="space-between" gap={10} flexWrap="wrap">
         <YStack gap={2} flex={1} minWidth={180}>
-          <Text fontSize={14} fontWeight="800" color="$navy">
+          <Text accessibilityRole="header" fontSize={14} fontWeight="800" color="$navy">
             Spending distribution
           </Text>
           <Text fontSize={12.5} color="$ink2" lineHeight={16}>
@@ -548,18 +553,18 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
               <View
                 key={value}
                 minWidth={70}
-                minHeight={46}
+                minHeight={48}
                 borderRadius={10}
                 alignItems="center"
                 justifyContent="center"
-                backgroundColor={selected ? "$backgroundStrong" : "transparent"}
+                backgroundColor={selected ? "$heroSurface" : "transparent"}
                 onPress={() => selectMetric(value)}
                 pressStyle={{ opacity: 0.72, scale: 0.97 }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
                 accessibilityLabel={`Rank categories by ${label.toLowerCase()}`}
               >
-                <Text fontSize={12.5} fontWeight="800" color={selected ? "$navy" : "$ink2"}>
+                <Text fontSize={12.5} fontWeight="800" color={selected ? "$onBrand" : "$ink2"}>
                   {label}
                 </Text>
               </View>
@@ -581,7 +586,9 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
           <YStack
             padding={14}
             borderRadius={17}
-            backgroundColor="rgba(235,0,27,0.055)"
+            borderWidth={1}
+            borderColor="$gold"
+            backgroundColor="$goldSoft"
             gap={10}
             accessible
             accessibilityRole="summary"
@@ -602,12 +609,12 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
               <XStack
                 flex={1}
                 minWidth={112}
-                minHeight={46}
+                minHeight={48}
                 borderRadius={11}
                 paddingHorizontal={10}
                 alignItems="center"
                 justifyContent="space-between"
-                backgroundColor="rgba(255,255,255,0.72)"
+                backgroundColor="$backgroundStrong"
               >
                 <Text fontSize={12} color="$navy2">Share</Text>
                 <Text fontSize={12.5} fontWeight="800" color="$navy">
@@ -617,12 +624,12 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
               <XStack
                 flex={1}
                 minWidth={112}
-                minHeight={46}
+                minHeight={48}
                 borderRadius={11}
                 paddingHorizontal={10}
                 alignItems="center"
                 justifyContent="space-between"
-                backgroundColor="rgba(255,255,255,0.72)"
+                backgroundColor="$backgroundStrong"
               >
                 <Text fontSize={12} color="$navy2">Debits</Text>
                 <Text fontSize={12.5} fontWeight="800" color="$navy">
@@ -659,7 +666,7 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
                 paddingHorizontal={selected ? 10 : 4}
                 paddingVertical={7}
                 borderRadius={13}
-                backgroundColor={selected ? "rgba(24,35,61,0.045)" : "transparent"}
+                backgroundColor={selected ? "$goldSoft" : "transparent"}
                 onPress={() => selectCategory(category.category)}
                 pressStyle={{ opacity: 0.72, scale: 0.99 }}
                 accessibilityRole="button"
@@ -672,7 +679,7 @@ export function CategoryHistogram({ data, maxItems = 10 }: CategoryHistogramProp
                       width={22}
                       height={22}
                       borderRadius={8}
-                      backgroundColor={selected ? "$navy" : "$surfaceAlt"}
+                      backgroundColor={selected ? "$redDeep" : "$surfaceAlt"}
                       alignItems="center"
                       justifyContent="center"
                     >

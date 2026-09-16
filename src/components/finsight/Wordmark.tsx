@@ -8,11 +8,11 @@ export interface WordmarkProps {
 }
 
 /**
- * "FInsight AI" wordmark. The AI is set in a subtle accent chip to read as
- * financial *intelligence* rather than a bank logo.
+ * "FInsight AI" wordmark. The warm AI marker reads as financial
+ * intelligence while keeping the brand lockup on one line.
  */
 export function Wordmark({ onDark = true, size = 19 }: WordmarkProps) {
-  const primary = onDark ? "white" : "$navy";
+  const primary = onDark ? "white" : "$charcoal";
   return (
     <XStack alignItems="center" gap={7}>
       <Text fontSize={size} fontWeight="800" letterSpacing={-0.5} color={primary as any}>
@@ -22,9 +22,22 @@ export function Wordmark({ onDark = true, size = 19 }: WordmarkProps) {
         borderRadius={8}
         paddingHorizontal={7}
         paddingVertical={2}
-        backgroundColor={onDark ? "rgba(255,255,255,0.18)" : "$aiSoft"}
+        backgroundColor={onDark ? "$gold" : "$orangeSoft"}
+        borderWidth={1}
+        borderColor={onDark ? "$gold" : "$gold"}
+        overflow="hidden"
       >
-        <Text fontSize={size - 5} fontWeight="800" letterSpacing={0.5} color={onDark ? "white" : "$ai"}>
+        <View
+          position="absolute"
+          right={-5}
+          bottom={-6}
+          width={18}
+          height={18}
+          borderRadius={9}
+          backgroundColor="$orange"
+          opacity={0.6}
+        />
+        <Text fontSize={size - 5} fontWeight="900" letterSpacing={0.5} color="$charcoal">
           AI
         </Text>
       </View>

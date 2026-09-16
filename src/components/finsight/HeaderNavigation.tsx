@@ -4,6 +4,7 @@ import { XStack, Text } from "tamagui";
 import Animated, { useAnimatedStyle, type SharedValue } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
+import { overlays } from "../../constants/colors";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { headingProximity } from "../../screens/home/homePagerMath";
 
@@ -43,13 +44,11 @@ function HeaderTabItem({
       : isCommitted
         ? 1
         : 0;
-    const maxLift = reducedMotion ? 2 : 5;
     return {
-      opacity: 0.72 + 0.28 * proximity,
-      transform: [
-        { translateY: -maxLift * proximity },
-        { scale: reducedMotion ? 1 : 1 + 0.04 * proximity },
-      ],
+      opacity: reducedMotion ? 1 : 0.72 + 0.28 * proximity,
+      transform: reducedMotion
+        ? [{ translateY: 0 }, { scale: 1 }]
+        : [{ translateY: -5 * proximity }, { scale: 1 + 0.04 * proximity }],
     };
   }, [isCommitted, pageProgress, index, reducedMotion]);
 
@@ -57,8 +56,11 @@ function HeaderTabItem({
     <Animated.View style={animatedContainerStyle}>
       <Pressable
         testID={`home-header-tab-${tab.toLowerCase()}`}
-        style={({ pressed }) => [styles.tabTarget, pressed && styles.tabPressed]}
-        android_ripple={{ color: "rgba(255,255,255,0.16)", borderless: false }}
+        style={({ pressed }) => [
+          styles.tabTarget,
+          pressed && (reducedMotion ? styles.tabPressedReduced : styles.tabPressed),
+        ]}
+        android_ripple={{ color: overlays.onBrand18, borderless: false }}
         onLayout={onLayout}
         onPress={onPress}
         accessibilityRole="tab"
@@ -126,6 +128,7 @@ const styles = StyleSheet.create({
   tabTarget: {
     minWidth: 88,
     minHeight: 48,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 12,
@@ -134,5 +137,8 @@ const styles = StyleSheet.create({
   tabPressed: {
     opacity: 0.76,
     transform: [{ scale: 0.98 }],
+  },
+  tabPressedReduced: {
+    opacity: 0.76,
   },
 });

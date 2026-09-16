@@ -79,9 +79,16 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 36 }}
       >
-        <YStack width="100%" maxWidth={760} alignSelf="center" paddingHorizontal={PAGE_H} gap={18}>
-          <YStack gap={5}>
-            <Text fontSize={24} lineHeight={30} fontWeight="800" color="$navy" letterSpacing={-0.6}>
+        <YStack width="100%" maxWidth={760} alignSelf="center" paddingHorizontal={PAGE_H} gap={20}>
+          <YStack gap={6}>
+            <Text
+              accessibilityRole="header"
+              fontSize={26}
+              lineHeight={32}
+              fontWeight="800"
+              color="$navy"
+              letterSpacing={-0.7}
+            >
               Your statement library
             </Text>
             <Text maxWidth={590} fontSize={13} lineHeight={19} color="$navy2">
@@ -90,18 +97,28 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
           </YStack>
 
           <XStack
+            minHeight={62}
             alignItems="center"
-            gap={9}
-            padding={12}
-            borderRadius={15}
-            backgroundColor="rgba(99,166,74,0.08)"
+            gap={10}
+            padding={13}
+            borderRadius={16}
+            backgroundColor="$heroSurface"
             borderWidth={1}
-            borderColor="rgba(99,166,74,0.2)"
+            borderColor="$heroSurfaceRaised"
             accessible
             accessibilityRole="summary"
           >
-            <ShieldCheck size={17} color="$success" strokeWidth={2.2} />
-            <Text flex={1} fontSize={12} lineHeight={17} color="$navy2">
+            <View
+              width={38}
+              height={38}
+              borderRadius={12}
+              backgroundColor="$heroSurfaceRaised"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <ShieldCheck size={18} color="$gold" strokeWidth={2.2} />
+            </View>
+            <Text flex={1} fontSize={12} lineHeight={17} color="$onBrand" opacity={0.76}>
               Statement rows are private to {user?.email || "your authenticated account"}.
             </Text>
           </XStack>
@@ -109,11 +126,11 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
           {loading ? (
             <YStack gap={10} accessibilityRole="progressbar" accessibilityLabel="Loading saved statements">
               {[0, 1, 2].map((item) => (
-                <View key={item} height={92} borderRadius={18} backgroundColor="$surfaceAlt" />
+                <View key={item} height={100} borderRadius={20} backgroundColor="$surfaceAlt" />
               ))}
             </YStack>
           ) : error ? (
-            <Card backgroundColor="rgba(214,69,69,0.05)" borderColor="rgba(214,69,69,0.22)">
+            <Card variant="flat" backgroundColor="$dangerSoft" borderColor="$danger">
               <YStack gap={13}>
                 <XStack gap={10} alignItems="flex-start" accessibilityRole="alert">
                   <AlertCircle size={19} color="$danger" strokeWidth={2.2} />
@@ -122,9 +139,9 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
                   </Text>
                 </XStack>
                 <XStack
-                  minHeight={46}
+                  minHeight={48}
                   borderRadius={14}
-                  backgroundColor="$navy"
+                  backgroundColor="$redDeep"
                   alignItems="center"
                   justifyContent="center"
                   gap={8}
@@ -133,16 +150,16 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
                   accessibilityRole="button"
                   accessibilityLabel="Retry loading saved statements"
                 >
-                  <RefreshCw size={17} color="white" />
-                  <Text color="white" fontWeight="800" fontSize={13.5}>Try again</Text>
+                  <RefreshCw size={17} color="$onBrand" />
+                  <Text color="$onBrand" fontWeight="800" fontSize={13.5}>Try again</Text>
                 </XStack>
               </YStack>
             </Card>
           ) : statements.length === 0 ? (
-            <Card>
-              <YStack alignItems="center" gap={11} paddingVertical={4}>
+            <Card variant="flat">
+              <YStack alignItems="center" gap={11} paddingVertical={5}>
                 <FinancialEmptyArtwork variant="transactions" width={210} />
-                <Text fontSize={18} fontWeight="800" color="$navy" textAlign="center">
+                <Text accessibilityRole="header" fontSize={18} fontWeight="800" color="$navy" textAlign="center">
                   No saved statements yet
                 </Text>
                 <Text maxWidth={330} fontSize={13} lineHeight={19} color="$navy2" textAlign="center">
@@ -154,12 +171,14 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
             <YStack gap={10}>
               {ignoredCount > 0 ? (
                 <XStack
-                  minHeight={48}
+                  minHeight={52}
                   gap={9}
                   alignItems="center"
                   paddingHorizontal={12}
                   borderRadius={14}
-                  backgroundColor="rgba(215,154,53,0.09)"
+                  borderWidth={1}
+                  borderColor="$gold"
+                  backgroundColor="$warningSoft"
                   accessible
                   accessibilityRole="alert"
                 >
@@ -180,9 +199,9 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
           )}
 
           <XStack
-            minHeight={50}
+            minHeight={52}
             borderRadius={15}
-            backgroundColor="$navy"
+            backgroundColor="$redDeep"
             alignItems="center"
             justifyContent="center"
             gap={9}
@@ -191,8 +210,8 @@ export function SavedStatementsScreen({ navigation }: { navigation?: any }) {
             accessibilityRole="button"
             accessibilityLabel="Analyze another CSV statement"
           >
-            <FilePlus2 size={18} color="white" strokeWidth={2.2} />
-            <Text color="white" fontSize={14} fontWeight="800">
+            <FilePlus2 size={18} color="$onBrand" strokeWidth={2.2} />
+            <Text color="$onBrand" fontSize={14} fontWeight="800">
               Analyze another statement
             </Text>
           </XStack>

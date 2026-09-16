@@ -19,6 +19,7 @@ import {
   MonthlyCashFlowChart,
 } from "../components/charts/StatementCharts";
 import { useAuth } from "../context/AuthContext";
+import { brandColors } from "../theme/mastercard";
 import { categoryLabel, transactionMerchantLabel } from "../services/financialInsights";
 import { loadPrivateStatement } from "../services/transactionService";
 import type { SavedStatementDetail } from "../types/transactions";
@@ -111,7 +112,7 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
               <View height={210} borderRadius={22} backgroundColor="$surfaceAlt" />
             </YStack>
           ) : error || !detail || !insights ? (
-            <Card backgroundColor="rgba(214,69,69,0.05)" borderColor="rgba(214,69,69,0.22)">
+            <Card variant="flat" backgroundColor="$dangerSoft" borderColor="$danger">
               <YStack gap={14}>
                 <XStack gap={10} alignItems="flex-start" accessibilityRole="alert">
                   <AlertCircle size={20} color="$danger" strokeWidth={2.2} />
@@ -123,9 +124,9 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                   </YStack>
                 </XStack>
                 <XStack
-                  minHeight={46}
+                  minHeight={48}
                   borderRadius={14}
-                  backgroundColor="$navy"
+                  backgroundColor="$redDeep"
                   alignItems="center"
                   justifyContent="center"
                   gap={8}
@@ -148,7 +149,7 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                     Saved to your private account
                   </Text>
                 </XStack>
-                <Text fontSize={25} lineHeight={31} fontWeight="800" color="$navy" letterSpacing={-0.65}>
+                <Text accessibilityRole="header" fontSize={25} lineHeight={31} fontWeight="800" color="$navy" letterSpacing={-0.65}>
                   {detail.statement.displayName}
                 </Text>
                 <XStack alignItems="center" gap={7}>
@@ -160,8 +161,10 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
               </YStack>
 
               <YStack
-                backgroundColor="$navy"
+                backgroundColor="$heroSurface"
                 borderRadius={24}
+                borderWidth={1}
+                borderColor="$heroSurfaceRaised"
                 padding={19}
                 gap={18}
                 overflow="hidden"
@@ -173,40 +176,51 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                   width={150}
                   height={150}
                   borderRadius={75}
-                  backgroundColor="rgba(235,0,27,0.18)"
+                  backgroundColor="$red"
+                  opacity={0.16}
                   right={-55}
                   top={-72}
                 />
+                <View
+                  position="absolute"
+                  width={74}
+                  height={74}
+                  borderRadius={37}
+                  backgroundColor="$orange"
+                  opacity={0.11}
+                  left={-32}
+                  bottom={-44}
+                />
                 <YStack gap={4}>
-                  <Text fontSize={11.5} color="#C9CEDA" fontWeight="700">Net cash flow</Text>
+                  <Text fontSize={11.5} color="$onBrand" opacity={0.68} fontWeight="700">Net cash flow</Text>
                   <Money
                     amount={Math.abs(insights.netCashFlow)}
                     kind={insights.netCashFlow >= 0 ? "credit" : "debit"}
                     signed
                     size={28}
-                    color="white"
-                    decColor="#C9CEDA"
+                    color={brandColors.white}
+                    decColor={brandColors.borderStrong}
                   />
-                  <Text fontSize={11.5} color="#C9CEDA">
+                  <Text fontSize={11.5} color="$onBrand" opacity={0.7}>
                     {insights.netCashFlow >= 0 ? "Surplus across this statement" : "Spending exceeded money in"}
                   </Text>
                 </YStack>
-                <XStack gap={10}>
-                  <YStack flex={1} padding={12} borderRadius={15} backgroundColor="rgba(255,255,255,0.09)" gap={4}>
-                    <Text fontSize={10.5} color="#C9CEDA">Money in</Text>
-                    <Text fontSize={14} fontWeight="800" color="white">
+                <XStack gap={10} flexWrap="wrap">
+                  <YStack flex={1} minWidth={100} padding={12} borderRadius={15} backgroundColor="$heroSurfaceRaised" gap={4}>
+                    <Text fontSize={10.5} color="$onBrand" opacity={0.66}>Money in</Text>
+                    <Text fontSize={14} fontWeight="800" color="$onBrand">
                       ₹{Math.round(insights.totalIncome).toLocaleString("en-IN")}
                     </Text>
                   </YStack>
-                  <YStack flex={1} padding={12} borderRadius={15} backgroundColor="rgba(255,255,255,0.09)" gap={4}>
-                    <Text fontSize={10.5} color="#C9CEDA">Money out</Text>
-                    <Text fontSize={14} fontWeight="800" color="white">
+                  <YStack flex={1} minWidth={100} padding={12} borderRadius={15} backgroundColor="$heroSurfaceRaised" gap={4}>
+                    <Text fontSize={10.5} color="$onBrand" opacity={0.66}>Money out</Text>
+                    <Text fontSize={14} fontWeight="800" color="$onBrand">
                       ₹{Math.round(insights.totalSpent).toLocaleString("en-IN")}
                     </Text>
                   </YStack>
-                  <YStack flex={1} padding={12} borderRadius={15} backgroundColor="rgba(255,255,255,0.09)" gap={4}>
-                    <Text fontSize={10.5} color="#C9CEDA">Transactions</Text>
-                    <Text fontSize={14} fontWeight="800" color="white">
+                  <YStack flex={1} minWidth={100} padding={12} borderRadius={15} backgroundColor="$heroSurfaceRaised" gap={4}>
+                    <Text fontSize={10.5} color="$onBrand" opacity={0.66}>Transactions</Text>
+                    <Text fontSize={14} fontWeight="800" color="$onBrand">
                       {insights.transactionCount.toLocaleString("en-IN")}
                     </Text>
                   </YStack>
@@ -215,8 +229,8 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
 
               {insights.monthlyActivity.length > 0 ? (
                 <YStack gap={10}>
-                  <Text fontSize={17} fontWeight="800" color="$navy">Cash-flow timeline</Text>
-                  <Card padding={16}>
+                  <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Cash-flow timeline</Text>
+                  <Card variant="flat" padding={16}>
                     <MonthlyCashFlowChart data={insights.monthlyActivity} />
                   </Card>
                 </YStack>
@@ -224,8 +238,8 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
 
               {insights.categoryBreakdown.length > 0 ? (
                 <YStack gap={10}>
-                  <Text fontSize={17} fontWeight="800" color="$navy">Category histogram</Text>
-                  <Card padding={16}>
+                  <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Category histogram</Text>
+                  <Card variant="flat" padding={16}>
                     <CategoryHistogram data={insights.categoryBreakdown} />
                   </Card>
                 </YStack>
@@ -233,31 +247,35 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
 
               {insights.observations.length > 0 ? (
                 <YStack gap={10}>
-                  <Text fontSize={17} fontWeight="800" color="$navy">Notable patterns</Text>
-                  <Card>
-                    <YStack gap={0}>
-                      {insights.observations.map((observation, index) => (
-                        <YStack
-                          key={observation.id}
-                          gap={3}
-                          paddingBottom={index === insights.observations.length - 1 ? 0 : 14}
-                          marginBottom={index === insights.observations.length - 1 ? 0 : 14}
-                          borderBottomWidth={index === insights.observations.length - 1 ? 0 : 1}
-                          borderBottomColor="$borderColor"
-                        >
-                          <Text fontSize={13} fontWeight="800" color="$navy">{observation.title}</Text>
-                          <Text fontSize={12} lineHeight={17} color="$navy2">{observation.body}</Text>
-                        </YStack>
-                      ))}
-                    </YStack>
-                  </Card>
+                  <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Notable patterns</Text>
+                  <YStack
+                    paddingVertical={16}
+                    borderTopWidth={1}
+                    borderBottomWidth={1}
+                    borderColor="$borderColor"
+                    gap={0}
+                  >
+                    {insights.observations.map((observation, index) => (
+                      <YStack
+                        key={observation.id}
+                        gap={3}
+                        paddingBottom={index === insights.observations.length - 1 ? 0 : 14}
+                        marginBottom={index === insights.observations.length - 1 ? 0 : 14}
+                        borderBottomWidth={index === insights.observations.length - 1 ? 0 : 1}
+                        borderBottomColor="$borderColor"
+                      >
+                        <Text fontSize={13} fontWeight="800" color="$navy">{observation.title}</Text>
+                        <Text fontSize={12} lineHeight={17} color="$navy2">{observation.body}</Text>
+                      </YStack>
+                    ))}
+                  </YStack>
                 </YStack>
               ) : null}
 
               <YStack gap={10}>
                 <XStack alignItems="flex-end" justifyContent="space-between" gap={12}>
                   <YStack gap={2} flex={1}>
-                    <Text fontSize={17} fontWeight="800" color="$navy">Extracted transactions</Text>
+                    <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Extracted transactions</Text>
                     <Text fontSize={11.5} color="$ink2">Newest first · privacy-safe descriptions</Text>
                   </YStack>
                   <Text fontSize={11.5} fontWeight="800" color="$navy2">
@@ -271,11 +289,11 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                     return (
                       <XStack
                         key={transaction.id}
-                        minHeight={72}
-                        paddingVertical={12}
-                        paddingHorizontal={14}
-                        borderRadius={16}
-                        backgroundColor="$backgroundStrong"
+                        minHeight={76}
+                        paddingVertical={13}
+                        paddingHorizontal={4}
+                        borderBottomWidth={1}
+                        borderBottomColor="$borderColor"
                         alignItems="center"
                         gap={12}
                         accessible
@@ -319,25 +337,26 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
               ) : null}
 
               <XStack
+                minHeight={58}
                 padding={12}
                 borderRadius={15}
                 gap={9}
                 alignItems="flex-start"
-                backgroundColor="rgba(99,166,74,0.08)"
+                backgroundColor="$orangeSoft"
                 borderWidth={1}
-                borderColor="rgba(99,166,74,0.2)"
+                borderColor="$gold"
                 accessibilityRole="summary"
               >
-                <ShieldCheck size={17} color="$success" strokeWidth={2.2} />
+                <ShieldCheck size={17} color="$orangeDeep" strokeWidth={2.2} />
                 <Text flex={1} fontSize={12} lineHeight={17} color="$navy2">
                   This view was rebuilt from saved sanitized fields. You do not need the original CSV to return here.
                 </Text>
               </XStack>
 
               <XStack
-                minHeight={50}
+                minHeight={52}
                 borderRadius={15}
-                backgroundColor="$navy"
+                backgroundColor="$redDeep"
                 alignItems="center"
                 justifyContent="center"
                 gap={9}

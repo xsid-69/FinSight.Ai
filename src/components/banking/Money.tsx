@@ -41,7 +41,7 @@ export function Money({
   const { int, dec } = splitAmount(amount, currency);
   const isCredit = kind === "credit";
   const mainColor = color ?? (isCredit ? "$success" : "$navy");
-  const decCol = decColor ?? (isCredit ? "#9BD9BA" : "$muted");
+  const decCol = decColor ?? (isCredit ? "$success" : "$muted");
   const sign = isCredit ? "+" : signed && kind === "debit" ? "\u2212" : "";
 
   return (

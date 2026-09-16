@@ -25,6 +25,7 @@ import {
   retryImportedStatementCloudSave,
 } from "../services/csvService";
 import { useReducedMotion } from "../hooks/useReducedMotion";
+import { brandColors } from "../theme/mastercard";
 import type { InsightsView } from "./home/InsightsContent";
 import type { FinancialInsights } from "../types/transactions";
 
@@ -253,14 +254,14 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                     width={44}
                     height={44}
                     borderRadius={15}
-                    backgroundColor="rgba(99,166,74,0.12)"
+                    backgroundColor="$successSoft"
                     alignItems="center"
                     justifyContent="center"
                   >
                     <CheckCircle2 size={23} color="$success" strokeWidth={2.2} />
                   </View>
                   <YStack flex={1} gap={2}>
-                    <Text fontSize={19} fontWeight="800" color="$navy">
+                    <Text accessibilityRole="header" fontSize={19} fontWeight="800" color="$navy">
                       Statement analyzed
                     </Text>
                     <Text fontSize={12.5} color="$navy2" lineHeight={18}>
@@ -322,7 +323,7 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                 </Card>
 
                 {summary.cloudSync && !cloudSynced ? (
-                  <Card backgroundColor="rgba(215,154,53,0.07)" borderColor="rgba(215,154,53,0.24)">
+                  <Card variant="flat" backgroundColor="$warningSoft" borderColor="$gold">
                     <YStack gap={11} accessible accessibilityRole="alert" accessibilityLabel="Cloud sync status">
                       <YStack gap={4}>
                         <Text fontSize={14} fontWeight="800" color="$navy">
@@ -340,7 +341,7 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                         <XStack
                           minHeight={48}
                           borderRadius={14}
-                          backgroundColor="$navy"
+                          backgroundColor="$redDeep"
                           alignItems="center"
                           justifyContent="center"
                           gap={8}
@@ -365,7 +366,9 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                   <>
                     <YStack
                       borderRadius={23}
-                      backgroundColor="$navy"
+                      backgroundColor="$heroSurface"
+                      borderWidth={1}
+                      borderColor="$heroSurfaceRaised"
                       padding={18}
                       gap={15}
                       overflow="hidden"
@@ -378,37 +381,48 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                         borderRadius={70}
                         right={-50}
                         top={-70}
-                        backgroundColor="rgba(235,0,27,0.18)"
+                        backgroundColor="$red"
+                        opacity={0.16}
+                      />
+                      <View
+                        position="absolute"
+                        width={68}
+                        height={68}
+                        borderRadius={34}
+                        left={-30}
+                        bottom={-42}
+                        backgroundColor="$orange"
+                        opacity={0.11}
                       />
                       <XStack alignItems="center" gap={8}>
-                        <BarChart3 size={18} color="#FFABB3" strokeWidth={2.2} />
+                        <BarChart3 size={18} color="$gold" strokeWidth={2.2} />
                         <YStack flex={1} gap={1}>
                           <Text fontSize={14} fontWeight="800" color="white">Statement snapshot</Text>
-                          <Text fontSize={11.5} color="#C9CEDA">{insight.periodLabel}</Text>
+                          <Text fontSize={11.5} color="$onBrand" opacity={0.68}>{insight.periodLabel}</Text>
                         </YStack>
                       </XStack>
                       <XStack gap={10} flexWrap="wrap">
                         <YStack flex={1} minWidth={120} gap={4}>
-                          <Text fontSize={10.5} color="#C9CEDA">Money out</Text>
+                          <Text fontSize={10.5} color="$onBrand" opacity={0.68}>Money out</Text>
                           <Text color="white" fontSize={16} fontWeight="800">
                             ₹{Math.round(insight.totalSpent).toLocaleString("en-IN")}
                           </Text>
                         </YStack>
                         <YStack flex={1} minWidth={120} gap={4}>
-                          <Text fontSize={10.5} color="#C9CEDA">Money in</Text>
+                          <Text fontSize={10.5} color="$onBrand" opacity={0.68}>Money in</Text>
                           <Text color="white" fontSize={16} fontWeight="800">
                             ₹{Math.round(insight.totalIncome).toLocaleString("en-IN")}
                           </Text>
                         </YStack>
                         <YStack flex={1} minWidth={120} gap={4}>
-                          <Text fontSize={10.5} color="#C9CEDA">Net cash flow</Text>
+                          <Text fontSize={10.5} color="$onBrand" opacity={0.68}>Net cash flow</Text>
                           <Money
                             amount={Math.abs(insight.netCashFlow)}
                             kind={insight.netCashFlow >= 0 ? "credit" : "debit"}
                             signed
                             size={16}
-                            color="white"
-                            decColor="#C9CEDA"
+                            color={brandColors.white}
+                            decColor={brandColors.borderStrong}
                           />
                         </YStack>
                       </XStack>
@@ -416,8 +430,8 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
 
                     {insight.monthlyActivity.length > 0 ? (
                       <YStack gap={10}>
-                        <Text fontSize={17} fontWeight="800" color="$navy">Cash-flow timeline</Text>
-                        <Card padding={16}>
+                        <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Cash-flow timeline</Text>
+                        <Card variant="flat" padding={16}>
                           <MonthlyCashFlowChart data={insight.monthlyActivity} />
                         </Card>
                       </YStack>
@@ -425,8 +439,8 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
 
                     {insight.categoryBreakdown.length > 0 ? (
                       <YStack gap={10}>
-                        <Text fontSize={17} fontWeight="800" color="$navy">Category histogram</Text>
-                        <Card padding={16}>
+                        <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Category histogram</Text>
+                        <Card variant="flat" padding={16}>
                           <CategoryHistogram data={insight.categoryBreakdown} />
                         </Card>
                       </YStack>
@@ -434,24 +448,28 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
 
                     {insight.observations.length > 0 ? (
                       <YStack gap={10}>
-                        <Text fontSize={17} fontWeight="800" color="$navy">What stands out</Text>
-                        <Card>
-                          <YStack gap={0}>
-                            {insight.observations.map((observation, index) => (
-                              <YStack
-                                key={observation.id}
-                                gap={3}
-                                paddingBottom={index === insight.observations.length - 1 ? 0 : 13}
-                                marginBottom={index === insight.observations.length - 1 ? 0 : 13}
-                                borderBottomWidth={index === insight.observations.length - 1 ? 0 : 1}
-                                borderBottomColor="$borderColor"
-                              >
-                                <Text fontSize={12.5} color="$navy" fontWeight="800">{observation.title}</Text>
-                                <Text fontSize={12} color="$navy2" lineHeight={17}>{observation.body}</Text>
-                              </YStack>
-                            ))}
-                          </YStack>
-                        </Card>
+                        <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">What stands out</Text>
+                        <YStack
+                          paddingVertical={15}
+                          borderTopWidth={1}
+                          borderBottomWidth={1}
+                          borderColor="$borderColor"
+                          gap={0}
+                        >
+                          {insight.observations.map((observation, index) => (
+                            <YStack
+                              key={observation.id}
+                              gap={3}
+                              paddingBottom={index === insight.observations.length - 1 ? 0 : 13}
+                              marginBottom={index === insight.observations.length - 1 ? 0 : 13}
+                              borderBottomWidth={index === insight.observations.length - 1 ? 0 : 1}
+                              borderBottomColor="$borderColor"
+                            >
+                              <Text fontSize={12.5} color="$navy" fontWeight="800">{observation.title}</Text>
+                              <Text fontSize={12} color="$navy2" lineHeight={17}>{observation.body}</Text>
+                            </YStack>
+                          ))}
+                        </YStack>
                       </YStack>
                     ) : null}
                   </>
@@ -461,7 +479,7 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                   <>
                     <XStack
                       minHeight={52}
-                      backgroundColor="$navy"
+                      backgroundColor="$redDeep"
                       borderRadius={16}
                       alignItems="center"
                       justifyContent="center"
@@ -502,8 +520,19 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                   </>
                 ) : null}
 
-                <XStack alignItems="flex-start" justifyContent="center" gap={7} accessibilityRole="summary">
-                  <ShieldCheck size={15} color="$success" strokeWidth={2.1} />
+                <XStack
+                  minHeight={58}
+                  alignItems="flex-start"
+                  justifyContent="center"
+                  gap={8}
+                  padding={12}
+                  borderRadius={15}
+                  backgroundColor="$orangeSoft"
+                  borderWidth={1}
+                  borderColor="$gold"
+                  accessibilityRole="summary"
+                >
+                  <ShieldCheck size={16} color="$orangeDeep" strokeWidth={2.1} />
                   <Text flex={1} fontSize={11.5} color="$navy2" lineHeight={16} textAlign="center">
                     {statementSaved
                       ? "The original CSV was discarded. Only privacy-safe extracted rows are stored under your signed-in account."

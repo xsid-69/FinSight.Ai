@@ -10,6 +10,7 @@ import { LoginScreen } from "../screens/LoginScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { AIScreen } from "../screens/AIScreen";
+import { SimulatorScreen } from "../screens/SimulatorScreen";
 import { StatementAnalyzerScreen } from "../screens/StatementAnalyzerScreen";
 import { SavedStatementsScreen } from "../screens/SavedStatementsScreen";
 import { StatementDetailScreen } from "../screens/StatementDetailScreen";
@@ -52,6 +53,11 @@ export function AppNavigator() {
               name="AIAssistant"
               component={AIAssistantScreen}
               options={{ presentation: "modal", animation: "slide_from_bottom" }}
+            />
+            <RootStack.Screen
+              name="Simulator"
+              component={SimulatorScreen}
+              options={{ presentation: "card", animation: "slide_from_right" }}
             />
             <RootStack.Screen
               name="Analyzer"
