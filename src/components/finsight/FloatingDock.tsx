@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import Svg, { Path } from "react-native-svg";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { LayoutDashboard, TrendingUp } from "@tamagui/lucide-icons";
+import { LayoutDashboard, TrendingUp, Trophy, Users } from "@tamagui/lucide-icons";
 import type { LucideIcon } from "../IconSquare";
 import { FloatingAIButton } from "./FloatingAIButton";
 import { overlays, palette } from "../../constants/colors";
@@ -78,12 +78,16 @@ function DockItem({
   icon: Icon,
   label,
   active,
+  activeColor = "$brand",
+  activeBg = overlays.red12,
   onPress,
 }: {
   testID: string;
   icon: LucideIcon;
   label: string;
   active: boolean;
+  activeColor?: string;
+  activeBg?: string;
   onPress: () => void;
 }) {
   return (
@@ -109,9 +113,9 @@ function DockItem({
           borderRadius={12}
           alignItems="center"
           justifyContent="center"
-          backgroundColor={active ? overlays.red12 : "transparent"}
+          backgroundColor={active ? activeBg : "transparent"}
         >
-          <Icon size={22} color={active ? "$brand" : "$charcoal"} strokeWidth={active ? 2.4 : 2} />
+          <Icon size={22} color={active ? activeColor : "$charcoal"} strokeWidth={active ? 2.4 : 2} />
         </View>
         <Text
           testID={`${testID}-label`}
@@ -120,7 +124,7 @@ function DockItem({
           lineHeight={14}
           fontSize={11}
           fontWeight={active ? "800" : "600"}
-          color={active ? "$brand" : "$charcoal"}
+          color={active ? activeColor : "$charcoal"}
           textAlign="center"
         >
           {label}
@@ -145,6 +149,10 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   const overviewActive = current === "Home" && committedTab === "Overview";
   const insightsActive = current === "Home" && committedTab === "Insights";
   const aiActive = current === "AI";
+  const hasCohortTab = state.routes.some(
+    (route) => route.name === "CohortScreen" || route.name === "Cohort",
+  );
+  const cohortActive = current === "CohortScreen" || current === "Cohort";
 
   const fillPath = buildClosedFillPath(width, insets.bottom);
   const borderPath = buildTopBorderPath(width);
@@ -164,6 +172,12 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
       nav.navigate("Home", { tab: target });
     }
     void Haptics.selectionAsync();
+  };
+
+  const handleCohortPress = () => {
+    if (cohortActive) return;
+    void Haptics.selectionAsync();
+    nav.navigate("CohortScreen");
   };
 
   const handleAIPress = () => {
@@ -252,13 +266,25 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           </Text>
         </Pressable>
 
-        <DockItem
-          testID="floating-dock-insights"
-          icon={TrendingUp}
-          label="Insights"
-          active={insightsActive}
-          onPress={handleTabPress("Insights")}
-        />
+        {hasCohortTab ? (
+          <DockItem
+            testID="floating-dock-ranking"
+            icon={Trophy}
+            label="Ranking"
+            active={cohortActive}
+            activeColor="$brand"
+            activeBg={overlays.red12}
+            onPress={handleCohortPress}
+          />
+        ) : (
+          <DockItem
+            testID="floating-dock-insights"
+            icon={TrendingUp}
+            label="Insights"
+            active={insightsActive}
+            onPress={handleTabPress("Insights")}
+          />
+        )}
       </XStack>
     </View>
   );

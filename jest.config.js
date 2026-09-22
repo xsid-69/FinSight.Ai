@@ -9,6 +9,7 @@ module.exports = {
   restoreMocks: true,
   moduleNameMapper: {
     "^react-native-gifted-charts$": "<rootDir>/jest.giftedChartsMock.js",
+    "^lucide-react-native$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js",
   },
   testPathIgnorePatterns: ["/node_modules/", "/helpers/"],
 };

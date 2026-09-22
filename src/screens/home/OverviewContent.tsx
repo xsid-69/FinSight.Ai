@@ -1,5 +1,5 @@
 import React from "react";
-import { useWindowDimensions } from "react-native";
+import { Image, StyleSheet, useWindowDimensions } from "react-native";
 import { ScrollView, Text, View, XStack, YStack } from "tamagui";
 import { MotiView } from "moti";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,11 +18,15 @@ import {
   RefreshCw,
   ShieldCheck,
   Target,
+  Trophy,
 } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
 
 import { Money } from "../../components/banking/Money";
 import { Card } from "../../components/finsight";
+import { SpringPressable } from "../../components/motion/SpringPressable";
+import { PulsingDot } from "../../components/motion/PulsingDot";
+import { InteractiveBannerCarousel } from "../../components/motion/InteractiveBannerCarousel";
 import {
   gradientEnd,
   gradientStart,
@@ -98,6 +102,7 @@ function CompactAction({
   onPress,
   tone,
   accessibilityLabel,
+  bgImage,
 }: {
   icon: typeof Target;
   title: string;
@@ -105,83 +110,94 @@ function CompactAction({
   onPress: () => void;
   tone: "warm" | "charcoal";
   accessibilityLabel: string;
+  bgImage?: string;
 }) {
   const charcoal = tone === "charcoal";
   return (
-    <YStack
-      flex={1}
-      minWidth={150}
-      minHeight={170}
-      borderRadius={22}
-      backgroundColor={charcoal ? "$heroSurface" : "$orangeSoft"}
-      borderWidth={1}
-      borderColor={charcoal ? "$heroSurfaceRaised" : "$gold"}
-      padding={17}
-      justifyContent="space-between"
-      overflow="hidden"
+    <SpringPressable
+      scaleTo={0.96}
       onPress={onPress}
-      pressStyle={{ opacity: 0.84, scale: 0.985 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      style={{ flex: 1, minWidth: 150 }}
     >
-      <View
-        position="absolute"
-        width={112}
-        height={112}
-        borderRadius={56}
-        backgroundColor={charcoal ? "$red" : "$gold"}
-        opacity={charcoal ? 0.17 : 0.24}
-        right={-42}
-        top={-52}
-      />
-      <View
-        width={42}
-        height={42}
-        borderRadius={14}
-        backgroundColor={charcoal ? "$red" : "$backgroundStrong"}
-        alignItems="center"
-        justifyContent="center"
+      <YStack
+        width="100%"
+        minHeight={170}
+        borderRadius={22}
+        backgroundColor={charcoal ? "$heroSurface" : "$orangeSoft"}
+        borderWidth={1}
+        borderColor={charcoal ? "$heroSurfaceRaised" : "$gold"}
+        padding={17}
+        justifyContent="space-between"
+        overflow="hidden"
       >
-        <Icon
-          size={20}
-          color={charcoal ? "$onBrand" : "$orangeDeep"}
-          strokeWidth={2.2}
+        {bgImage ? (
+          <Image
+            source={{ uri: bgImage }}
+            style={[StyleSheet.absoluteFill, { opacity: charcoal ? 0.14 : 0.08 }]}
+            resizeMode="cover"
+          />
+        ) : null}
+        <View
+          position="absolute"
+          width={112}
+          height={112}
+          borderRadius={56}
+          backgroundColor={charcoal ? "$red" : "$gold"}
+          opacity={charcoal ? 0.17 : 0.24}
+          right={-42}
+          top={-52}
         />
-      </View>
-      <YStack gap={5} marginTop={18}>
-        <Text
-          accessibilityRole="header"
-          fontSize={17}
-          lineHeight={22}
-          fontWeight="800"
-          color={charcoal ? "$onBrand" : "$charcoal"}
+        <View
+          width={42}
+          height={42}
+          borderRadius={14}
+          backgroundColor={charcoal ? "$red" : "$backgroundStrong"}
+          alignItems="center"
+          justifyContent="center"
         >
-          {title}
-        </Text>
-        <Text
-          fontSize={12.5}
-          lineHeight={18}
-          color={charcoal ? "$onBrand" : "$secondary"}
-          opacity={charcoal ? 0.72 : 1}
-        >
-          {body}
-        </Text>
+          <Icon
+            size={20}
+            color={charcoal ? "$onBrand" : "$orangeDeep"}
+            strokeWidth={2.2}
+          />
+        </View>
+        <YStack gap={5} marginTop={18}>
+          <Text
+            accessibilityRole="header"
+            fontSize={17}
+            lineHeight={22}
+            fontWeight="800"
+            color={charcoal ? "$onBrand" : "$charcoal"}
+          >
+            {title}
+          </Text>
+          <Text
+            fontSize={12.5}
+            lineHeight={18}
+            color={charcoal ? "$onBrand" : "$secondary"}
+            opacity={charcoal ? 0.72 : 1}
+          >
+            {body}
+          </Text>
+        </YStack>
+        <XStack marginTop={14} alignItems="center" justifyContent="space-between">
+          <Text
+            fontSize={12.5}
+            fontWeight="800"
+            color={charcoal ? "$gold" : "$orangeDeep"}
+          >
+            Open
+          </Text>
+          <ChevronRight
+            size={17}
+            color={charcoal ? "$gold" : "$orangeDeep"}
+            strokeWidth={2.4}
+          />
+        </XStack>
       </YStack>
-      <XStack marginTop={14} alignItems="center" justifyContent="space-between">
-        <Text
-          fontSize={12.5}
-          fontWeight="800"
-          color={charcoal ? "$gold" : "$orangeDeep"}
-        >
-          Open
-        </Text>
-        <ChevronRight
-          size={17}
-          color={charcoal ? "$gold" : "$orangeDeep"}
-          strokeWidth={2.4}
-        />
-      </XStack>
-    </YStack>
+    </SpringPressable>
   );
 }
 
@@ -214,47 +230,50 @@ function FeatureRow({
       : "$charcoal";
 
   return (
-    <XStack
-      minHeight={76}
-      paddingVertical={12}
-      alignItems="center"
-      gap={13}
-      borderBottomWidth={last ? 0 : 1}
-      borderBottomColor="$borderColor"
+    <SpringPressable
+      scaleTo={0.97}
       onPress={onPress}
-      pressStyle={{ opacity: 0.68 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <View
-        width={44}
-        height={44}
-        borderRadius={15}
-        backgroundColor={iconBackground}
+      <XStack
+        minHeight={76}
+        paddingVertical={12}
         alignItems="center"
-        justifyContent="center"
+        gap={13}
+        borderBottomWidth={last ? 0 : 1}
+        borderBottomColor="$borderColor"
       >
-        <Icon size={20} color={iconColor} strokeWidth={2.15} />
-      </View>
-      <YStack flex={1} gap={3}>
-        <Text fontSize={14.5} lineHeight={20} fontWeight="800" color="$charcoal">
-          {title}
-        </Text>
-        <Text fontSize={12} lineHeight={17} color="$secondary">
-          {description}
-        </Text>
-      </YStack>
-      <View
-        width={40}
-        height={40}
-        borderRadius={14}
-        backgroundColor="$surfaceAlt"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <ChevronRight size={18} color="$secondary" strokeWidth={2.2} />
-      </View>
-    </XStack>
+        <View
+          width={44}
+          height={44}
+          borderRadius={15}
+          backgroundColor={iconBackground}
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Icon size={20} color={iconColor} strokeWidth={2.15} />
+        </View>
+        <YStack flex={1} gap={3}>
+          <Text fontSize={14.5} lineHeight={20} fontWeight="800" color="$charcoal">
+            {title}
+          </Text>
+          <Text fontSize={12} lineHeight={17} color="$secondary">
+            {description}
+          </Text>
+        </YStack>
+        <View
+          width={40}
+          height={40}
+          borderRadius={14}
+          backgroundColor="$surfaceAlt"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <ChevronRight size={18} color="$secondary" strokeWidth={2.2} />
+        </View>
+      </XStack>
+    </SpringPressable>
   );
 }
 
@@ -488,10 +507,19 @@ export function OverviewContent({
             padding={20}
             overflow="hidden"
             shadowColor={palette.charcoal}
-            shadowOffset={{ width: 0, height: 14 }}
-            shadowOpacity={0.16}
-            shadowRadius={28}
+            shadowOffset={{ width: 0, height: 18 }}
+            shadowOpacity={0.28}
+            shadowRadius={32}
           >
+            {/* Subtle Inset Glass Highlight Hairline */}
+            <View
+              position="absolute"
+              top={0}
+              left={0}
+              right={0}
+              height={1}
+              backgroundColor={overlays.onBrand12}
+            />
             <View
               position="absolute"
               width={184}
@@ -514,23 +542,35 @@ export function OverviewContent({
             />
             <XStack alignItems="center" justifyContent="space-between" gap={12} marginBottom={17}>
               <XStack alignItems="center" gap={8} flex={1}>
-                <ShieldCheck size={17} color="$gold" strokeWidth={2.2} />
-                <Text fontSize={12.5} lineHeight={17} color="$onBrand" fontWeight="700" opacity={0.82}>
+                <ShieldCheck size={16} color="$gold" strokeWidth={2.2} />
+                <Text
+                  fontSize={10.5}
+                  textTransform="uppercase"
+                  letterSpacing={1.8}
+                  color="$onBrand"
+                  fontWeight="700"
+                  opacity={0.78}
+                >
                   Private financial snapshot
                 </Text>
               </XStack>
-              {summaryState === "ready" && insights ? (
-                <View
-                  borderRadius={999}
-                  paddingHorizontal={9}
-                  paddingVertical={5}
-                  backgroundColor={overlays.onBrand12}
-                >
-                  <Text fontSize={10.5} fontWeight="800" color="$onBrand">
-                    {insights.transactionCount.toLocaleString("en-IN")} records
-                  </Text>
-                </View>
-              ) : null}
+              <XStack alignItems="center" gap={8}>
+                {summaryState === "ready" ? (
+                  <PulsingDot label="Live Auto-Sync" />
+                ) : null}
+                {summaryState === "ready" && insights ? (
+                  <View
+                    borderRadius={999}
+                    paddingHorizontal={9}
+                    paddingVertical={4.5}
+                    backgroundColor={overlays.onBrand12}
+                  >
+                    <Text fontSize={10.5} fontWeight="800" color="$onBrand">
+                      {insights.transactionCount.toLocaleString("en-IN")} records
+                    </Text>
+                  </View>
+                ) : null}
+              </XStack>
             </XStack>
 
             {renderSnapshot()}
@@ -557,6 +597,13 @@ export function OverviewContent({
               </XStack>
             ) : null}
           </YStack>
+
+          {/* Interactive Snapping Carousel with 3D Banners */}
+          <InteractiveBannerCarousel
+            navigation={navigation}
+            onOpenSimulator={openPlanner}
+            onOpenInsights={() => openInsights("analysis")}
+          />
 
           {refreshError ? (
             <XStack
@@ -621,65 +668,75 @@ export function OverviewContent({
             </Text>
           </YStack>
 
-          <YStack
-            marginTop={14}
-            minHeight={116}
-            borderRadius={22}
-            overflow="hidden"
+          <SpringPressable
+            scaleTo={0.98}
             onPress={openAnalyzer}
-            pressStyle={{ opacity: 0.9, scale: 0.99 }}
             accessibilityRole="button"
             accessibilityLabel="Analyse a bank statement"
+            style={{ marginTop: 14 }}
           >
-            <LinearGradient
-              colors={redGradient as unknown as [string, string]}
-              start={gradientStart}
-              end={gradientEnd}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-            />
-            <View
-              position="absolute"
-              width={120}
-              height={120}
-              borderRadius={60}
-              backgroundColor="$orange"
-              opacity={0.2}
-              right={-26}
-              top={-48}
-            />
-            <XStack flex={1} padding={18} alignItems="center" gap={14}>
+            <YStack
+              minHeight={116}
+              borderRadius={22}
+              overflow="hidden"
+            >
+              <LinearGradient
+                colors={redGradient as unknown as [string, string]}
+                start={gradientStart}
+                end={gradientEnd}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+              <Image
+                source={{
+                  uri: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80",
+                }}
+                style={[StyleSheet.absoluteFill, { opacity: 0.12 }]}
+                resizeMode="cover"
+              />
               <View
-                width={50}
-                height={50}
-                borderRadius={17}
-                backgroundColor={overlays.onBrand18}
-                borderWidth={1}
-                borderColor={overlays.onBrand24}
-                alignItems="center"
-                justifyContent="center"
-              >
-                <FileUp size={23} color="$onBrand" strokeWidth={2.2} />
-              </View>
-              <YStack flex={1} gap={4}>
-                <Text fontSize={17} lineHeight={22} fontWeight="800" color="$onBrand">
-                  Analyse a bank statement
-                </Text>
-                <Text maxWidth={500} fontSize={12.5} lineHeight={18} color="$onBrand" opacity={0.78}>
-                  Import a CSV, sanitize it locally, and create your private financial analysis.
-                </Text>
-              </YStack>
-              <View
-                width={42}
-                height={42}
-                borderRadius={21}
-                backgroundColor="$backgroundStrong"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <ArrowRight size={18} color="$red" strokeWidth={2.4} />
-              </View>
-            </XStack>
-          </YStack>
+                position="absolute"
+                width={120}
+                height={120}
+                borderRadius={60}
+                backgroundColor="$orange"
+                opacity={0.2}
+                right={-26}
+                top={-48}
+              />
+              <XStack flex={1} padding={18} alignItems="center" gap={14}>
+                <View
+                  width={50}
+                  height={50}
+                  borderRadius={17}
+                  backgroundColor={overlays.onBrand18}
+                  borderWidth={1}
+                  borderColor={overlays.onBrand24}
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <FileUp size={23} color="$onBrand" strokeWidth={2.2} />
+                </View>
+                <YStack flex={1} gap={4}>
+                  <Text fontSize={17} lineHeight={22} fontWeight="800" color="$onBrand">
+                    Analyse a bank statement
+                  </Text>
+                  <Text maxWidth={500} fontSize={12.5} lineHeight={18} color="$onBrand" opacity={0.78}>
+                    Import a CSV, sanitize it locally, and create your private financial analysis.
+                  </Text>
+                </YStack>
+                <View
+                  width={42}
+                  height={42}
+                  borderRadius={21}
+                  backgroundColor="$backgroundStrong"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <ArrowRight size={18} color="$red" strokeWidth={2.4} />
+                </View>
+              </XStack>
+            </YStack>
+          </SpringPressable>
 
           <XStack
             marginTop={12}
@@ -692,6 +749,7 @@ export function OverviewContent({
               title="Purchase planner"
               body="Test a real purchase against your available cash, reserve, and statement history."
               tone="warm"
+              bgImage="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=400&q=80"
               onPress={openPlanner}
               accessibilityLabel="Open Purchase Planner"
             />
@@ -700,10 +758,82 @@ export function OverviewContent({
               title="FinSight AI"
               body="Explore guided financial questions and planning tools."
               tone="charcoal"
+              bgImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80"
               onPress={openAI}
               accessibilityLabel="Open FinSight AI"
             />
           </XStack>
+
+          {/* Peer Ranking & Benchmark Highlight Banner */}
+          <SpringPressable
+            scaleTo={0.98}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              navigation?.navigate?.("CohortScreen");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="View Cohort Ranking and Peer Leaderboard"
+            style={{ marginTop: 14 }}
+          >
+            <YStack
+              minHeight={96}
+              borderRadius={22}
+              backgroundColor="$backgroundStrong"
+              borderWidth={1}
+              borderColor="$borderColor"
+              overflow="hidden"
+              padding={16}
+              justifyContent="space-between"
+            >
+              <Image
+                source={{
+                  uri: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=600&q=80",
+                }}
+                style={[StyleSheet.absoluteFill, { opacity: 0.09 }]}
+                resizeMode="cover"
+              />
+              <XStack alignItems="center" justifyContent="space-between" marginBottom={6}>
+                <XStack alignItems="center" gap={7}>
+                  <Trophy size={16} color="#F79E1B" strokeWidth={2.4} />
+                  <Text fontSize={11} fontWeight="800" textTransform="uppercase" letterSpacing={1.2} color="$secondary">
+                    Peer Benchmark Ranking
+                  </Text>
+                </XStack>
+                <View
+                  borderRadius={999}
+                  backgroundColor="$orangeSoft"
+                  paddingHorizontal={9}
+                  paddingVertical={3.5}
+                >
+                  <Text fontSize={11} fontWeight="800" color="$orangeDeep">
+                    Top 22% Saver
+                  </Text>
+                </View>
+              </XStack>
+
+              <XStack alignItems="center" justifyContent="space-between">
+                <YStack gap={2} flex={1}>
+                  <Text fontSize={15} fontWeight="800" color="$charcoal">
+                    Nagpur College Students Benchmark
+                  </Text>
+                  <Text fontSize={12} color="$secondary">
+                    Review your 4-category score and top money handler habits
+                  </Text>
+                </YStack>
+                <View
+                  width={34}
+                  height={34}
+                  borderRadius={17}
+                  backgroundColor="$surfaceAlt"
+                  alignItems="center"
+                  justifyContent="center"
+                  marginLeft={10}
+                >
+                  <ChevronRight size={16} color="$charcoal" strokeWidth={2.4} />
+                </View>
+              </XStack>
+            </YStack>
+          </SpringPressable>
 
           <YStack marginTop={28} gap={5}>
             <Text accessibilityRole="header" fontSize={21} lineHeight={27} fontWeight="800" color="$charcoal">

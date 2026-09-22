@@ -431,3 +431,56 @@ describe("FloatingDock geometry, compact action ownership, and topology", () => 
     expect(Haptics.selectionAsync).not.toHaveBeenCalled();
   });
 });
+
+describe("FloatingDock 3-button layout with Compare tab", () => {
+  function mock3ButtonTabBarProps(currentRoute = "Home") {
+    const routeIndex = currentRoute === "CohortScreen" ? 2 : currentRoute === "AI" ? 1 : 0;
+    return {
+      state: {
+        key: "tabs",
+        index: routeIndex,
+        routeNames: ["Home", "AI", "CohortScreen"],
+        history: [],
+        stale: false,
+        type: "tab",
+        routes: [
+          { key: "Home-key", name: "Home", params: { tab: "Overview" } },
+          { key: "AI-key", name: "AI" },
+          { key: "CohortScreen-key", name: "CohortScreen" },
+        ],
+      },
+      navigation: { navigate: jest.fn() },
+      descriptors: {},
+      insets: { top: 0, right: 0, bottom: 24, left: 0 },
+    } as any;
+  }
+
+  test("renders exactly 3 buttons (Overview, AI, Ranking) and completely excludes Insights", async () => {
+    const props = mock3ButtonTabBarProps("Home");
+    const screen = await render(<FloatingDock {...props} />);
+
+    // Exactly three buttons in the dock:
+    expect(screen.getByTestId("floating-dock-overview")).toBeTruthy();
+    expect(screen.getByTestId("floating-dock-ai")).toBeTruthy();
+    expect(screen.getByTestId("floating-dock-ranking")).toBeTruthy();
+
+    // Insights must NOT be present
+    expect(screen.queryByTestId("floating-dock-insights")).toBeNull();
+
+    // Verify Ranking tab label and role
+    const rankingTab = screen.getByRole("tab", { name: "Ranking" });
+    expect(rankingTab).toBeTruthy();
+    expect(rankingTab.props.accessibilityState).toEqual({ selected: false });
+  });
+
+  test("tapping Ranking triggers haptics and navigates to CohortScreen", async () => {
+    const props = mock3ButtonTabBarProps("Home");
+    const screen = await render(<FloatingDock {...props} />);
+
+    const rankingTab = screen.getByTestId("floating-dock-ranking");
+    await fireEvent.press(rankingTab);
+
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    expect(props.navigation.navigate).toHaveBeenCalledWith("CohortScreen");
+  });
+});

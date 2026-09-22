@@ -16,6 +16,7 @@ import { SavedStatementsScreen } from "../screens/SavedStatementsScreen";
 import { StatementDetailScreen } from "../screens/StatementDetailScreen";
 import { AIAssistantScreen } from "../screens/AIAssistantScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
+import { CohortScreen } from "../screens/CohortScreen";
 import { HomePagerCoordinatorProvider } from "../screens/home/HomePagerCoordinator";
 
 const Tab = createBottomTabNavigator();
@@ -31,6 +32,7 @@ function MainTabs() {
       >
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="AI" component={AIScreen} />
+        <Tab.Screen name="CohortScreen" component={CohortScreen} options={{ title: "Ranking" }} />
       </Tab.Navigator>
     </HomePagerCoordinatorProvider>
   );
@@ -77,6 +79,16 @@ export function AppNavigator() {
             <RootStack.Screen
               name="Profile"
               component={ProfileScreen}
+              options={{ presentation: "card", animation: "slide_from_right" }}
+            />
+            <RootStack.Screen
+              name="Cohort"
+              component={CohortScreen}
+              options={{ presentation: "card", animation: "slide_from_right" }}
+            />
+            <RootStack.Screen
+              name="CohortScreen"
+              component={CohortScreen}
               options={{ presentation: "card", animation: "slide_from_right" }}
             />
           </>

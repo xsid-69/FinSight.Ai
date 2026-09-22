@@ -25,6 +25,7 @@ import {
   retryImportedStatementCloudSave,
 } from "../services/csvService";
 import { useReducedMotion } from "../hooks/useReducedMotion";
+import { triggerSuccessHaptic } from "../utils/haptics";
 import { brandColors } from "../theme/mastercard";
 import type { InsightsView } from "./home/InsightsContent";
 import type { FinancialInsights } from "../types/transactions";
@@ -127,6 +128,7 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
       }
       setSummary(result as ImportSummary);
       setPhase("done");
+      void triggerSuccessHaptic();
     } catch (error) {
       setImportError(errorMessage(error));
       setPhase("ready");

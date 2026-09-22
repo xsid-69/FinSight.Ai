@@ -32,6 +32,8 @@ import * as Haptics from "expo-haptics";
 
 import { Card } from "../../components/finsight";
 import { Money } from "../../components/banking/Money";
+import { SwipeableTransactionRow } from "../../components/motion/SwipeableTransactionRow";
+import { triggerButtonHaptic } from "../../utils/haptics";
 import MerchantAvatar from "../../components/MerchantAvatar";
 import {
   CategoryHistogram,
@@ -506,42 +508,53 @@ function StatementScopePicker({
   );
 }
 
-function LedgerRow({ transaction }: { transaction: PrivateTransaction }) {
+function LedgerRow({
+  transaction,
+  index = 0,
+}: {
+  transaction: PrivateTransaction;
+  index?: number;
+}) {
   const credit = transaction.type === "CREDIT";
   const merchant = transactionMerchantLabel(transaction);
   return (
-    <XStack
-      minHeight={76}
-      paddingVertical={13}
-      paddingHorizontal={4}
-      borderBottomWidth={1}
-      borderBottomColor="$borderColor"
-      alignItems="center"
-      gap={12}
-      accessible
-      accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${displayDate(transaction.date)}`}
+    <SwipeableTransactionRow
+      index={index}
+      accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees`}
     >
-      <MerchantAvatar
-        merchantName={merchant}
-        merchantKey={transaction.merchantKey}
-        category={transaction.category}
-        size={42}
-      />
-      <YStack flex={1} gap={4}>
-        <Text fontSize={13.5} fontWeight="800" color="$navy" numberOfLines={1}>
-          {merchant}
-        </Text>
-        <Text fontSize={11.5} color="$ink2" numberOfLines={1}>
-          {categoryLabel(transaction.category)} · {displayDate(transaction.date)}
-        </Text>
-      </YStack>
-      <Money
-        amount={transaction.amount}
-        kind={credit ? "credit" : "debit"}
-        signed
-        size={13.5}
-      />
-    </XStack>
+      <XStack
+        minHeight={76}
+        paddingVertical={13}
+        paddingHorizontal={4}
+        borderBottomWidth={1}
+        borderBottomColor="$borderColor"
+        alignItems="center"
+        gap={12}
+        accessible
+        accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${displayDate(transaction.date)}`}
+      >
+        <MerchantAvatar
+          merchantName={merchant}
+          merchantKey={transaction.merchantKey}
+          category={transaction.category}
+          size={42}
+        />
+        <YStack flex={1} gap={4}>
+          <Text fontSize={13.5} fontWeight="800" color="$navy" numberOfLines={1}>
+            {merchant}
+          </Text>
+          <Text fontSize={11.5} color="$ink2" numberOfLines={1}>
+            {categoryLabel(transaction.category)} · {displayDate(transaction.date)}
+          </Text>
+        </YStack>
+        <Money
+          amount={transaction.amount}
+          kind={credit ? "credit" : "debit"}
+          signed
+          size={13.5}
+        />
+      </XStack>
+    </SwipeableTransactionRow>
   );
 }
 
@@ -880,10 +893,11 @@ function ScopedTransactionsWorkspace({
 
             {visibleTransactions.length > 0 ? (
               <YStack gap={8}>
-                {visibleTransactions.map((transaction) => (
+                {visibleTransactions.map((transaction, index) => (
                   <LedgerRow
                     key={transaction.id}
                     transaction={transaction}
+                    index={index}
                   />
                 ))}
               </YStack>

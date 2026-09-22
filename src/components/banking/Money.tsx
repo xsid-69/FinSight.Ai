@@ -46,7 +46,13 @@ export function Money({
 
   return (
     <XStack alignItems="flex-end">
-      <Text fontSize={size} fontWeight={weight} color={mainColor as any} letterSpacing={-0.3}>
+      <Text
+        fontSize={size}
+        fontWeight={weight}
+        color={mainColor as any}
+        letterSpacing={-0.4}
+        fontVariant={["tabular-nums"]}
+      >
         {sign}
         {currencySymbol(currency)}
         {int}
@@ -56,6 +62,7 @@ export function Money({
         fontWeight="700"
         color={decCol as any}
         marginBottom={Math.round(size * 0.05)}
+        fontVariant={["tabular-nums"]}
       >
         .{dec}
       </Text>

@@ -26,6 +26,7 @@ import {
   InsightsContent,
   type InsightsView,
 } from "./home/InsightsContent";
+import { DemographicPromptModal } from "../components/finsight/DemographicPromptModal";
 
 interface TransactionState {
   transactions: PrivateTransaction[];
@@ -514,6 +515,7 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
           />,
         ]}
       />
+      <DemographicPromptModal onCompleted={() => {}} />
     </FinSightShell>
   );
 }

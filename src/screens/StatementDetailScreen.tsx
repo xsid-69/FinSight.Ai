@@ -18,6 +18,7 @@ import {
   CategoryHistogram,
   MonthlyCashFlowChart,
 } from "../components/charts/StatementCharts";
+import { SwipeableTransactionRow } from "../components/motion/SwipeableTransactionRow";
 import { useAuth } from "../context/AuthContext";
 import { brandColors } from "../theme/mastercard";
 import { categoryLabel, transactionMerchantLabel } from "../services/financialInsights";
@@ -283,43 +284,44 @@ export function StatementDetailScreen({ navigation, route }: { navigation?: any;
                   </Text>
                 </XStack>
                 <YStack gap={8}>
-                  {detail.transactions.slice(0, 20).map((transaction) => {
+                  {detail.transactions.slice(0, 20).map((transaction, index) => {
                     const merchant = transactionMerchantLabel(transaction);
                     const credit = transaction.type === "CREDIT";
                     return (
-                      <XStack
-                        key={transaction.id}
-                        minHeight={76}
-                        paddingVertical={13}
-                        paddingHorizontal={4}
-                        borderBottomWidth={1}
-                        borderBottomColor="$borderColor"
-                        alignItems="center"
-                        gap={12}
-                        accessible
-                        accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${transactionDateLabel(transaction.date)}`}
-                      >
-                        <MerchantAvatar
-                          merchantName={merchant}
-                          merchantKey={transaction.merchantKey}
-                          category={transaction.category}
-                          size={42}
-                        />
-                        <YStack flex={1} gap={3}>
-                          <Text numberOfLines={1} fontSize={13} fontWeight="750" color="$navy">
-                            {merchant}
-                          </Text>
-                          <Text fontSize={11} color="$ink2">
-                            {transactionDateLabel(transaction.date)} · {categoryLabel(transaction.category)}
-                          </Text>
-                        </YStack>
-                        <Money
-                          amount={transaction.amount}
-                          kind={credit ? "credit" : "debit"}
-                          signed={credit}
-                          size={13.5}
-                        />
-                      </XStack>
+                      <SwipeableTransactionRow key={transaction.id} index={index}>
+                        <XStack
+                          minHeight={76}
+                          paddingVertical={13}
+                          paddingHorizontal={4}
+                          borderBottomWidth={1}
+                          borderBottomColor="$borderColor"
+                          alignItems="center"
+                          gap={12}
+                          accessible
+                          accessibilityLabel={`${credit ? "Credit" : "Debit"}, ${merchant}, ${transaction.amount} rupees, ${categoryLabel(transaction.category)}, ${transactionDateLabel(transaction.date)}`}
+                        >
+                          <MerchantAvatar
+                            merchantName={merchant}
+                            merchantKey={transaction.merchantKey}
+                            category={transaction.category}
+                            size={42}
+                          />
+                          <YStack flex={1} gap={3}>
+                            <Text numberOfLines={1} fontSize={13} fontWeight="750" color="$navy">
+                              {merchant}
+                            </Text>
+                            <Text fontSize={11} color="$ink2">
+                              {transactionDateLabel(transaction.date)} · {categoryLabel(transaction.category)}
+                            </Text>
+                          </YStack>
+                          <Money
+                            amount={transaction.amount}
+                            kind={credit ? "credit" : "debit"}
+                            signed={credit}
+                            size={13.5}
+                          />
+                        </XStack>
+                      </SwipeableTransactionRow>
                     );
                   })}
                 </YStack>
