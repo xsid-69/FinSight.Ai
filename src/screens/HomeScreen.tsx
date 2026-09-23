@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { useSharedValue } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -10,8 +10,16 @@ import {
   loadPrivateStatement,
   loadPrivateStatements,
   loadPrivateTransactions,
+  subscribeToPrivateTransactions,
 } from "../services/transactionService";
 import { buildFinancialInsights } from "../services/financialInsights";
+import { checkSmsPermission, requestSmsPermission } from "../services/smsPermissionManager";
+import {
+  loadLocalSmsTransactions,
+  syncSmsTransactions,
+  subscribeToSmsTransactions,
+} from "../services/smsStorageService";
+import { SmsInterceptionToast } from "../components/SmsInterceptionToast";
 import type {
   FinancialInsights,
   PrivateTransaction,
@@ -110,6 +118,9 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
   const [selectedStatementState, setSelectedStatementState] =
     useState<SelectedStatementState>(EMPTY_SELECTED_STATEMENT_STATE);
   const selectedStatementId = selectedStatementState.statementId;
+  const [smsPermissionGranted, setSmsPermissionGranted] = useState(false);
+  const [activeToast, setActiveToast] = useState<PrivateTransaction | null>(null);
+  const [persistedSmsTransactions, setPersistedSmsTransactions] = useState<PrivateTransaction[]>([]);
   const transactionRequestRef = useRef(0);
   const statementRequestRef = useRef(0);
   const selectedStatementRequestRef = useRef(0);
@@ -342,10 +353,154 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
     observedStatementParamRef.current = undefined;
   }, [user?.uid]);
 
+  // Hydrate persistent SMS transactions from AsyncStorage & sync with dedicated Firestore /sms_transactions
+  useEffect(() => {
+    let isMounted = true;
+    const uid = user?.uid;
+
+    void (async () => {
+      const cached = await loadLocalSmsTransactions(uid);
+      if (isMounted && cached && cached.length > 0) {
+        setPersistedSmsTransactions(cached);
+      }
+      if (uid) {
+        const synced = await syncSmsTransactions(uid);
+        if (isMounted && synced && synced.length > 0) {
+          setPersistedSmsTransactions(synced);
+        }
+      }
+    })();
+
+    let unsubscribeFirestoreSms: (() => void) | undefined;
+    if (uid) {
+      unsubscribeFirestoreSms = subscribeToSmsTransactions(uid, (updated: PrivateTransaction[]) => {
+        if (isMounted && updated) {
+          setPersistedSmsTransactions(updated);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      if (unsubscribeFirestoreSms) unsubscribeFirestoreSms();
+    };
+  }, [user?.uid]);
+
+  const handleIncomingSmsTransaction = useCallback((tx: PrivateTransaction) => {
+    setActiveToast(tx);
+    setPersistedSmsTransactions((prev) => {
+      const exists = prev.some(
+        (t) => t.id === tx.id || (tx.referenceNo && t.referenceNo === tx.referenceNo)
+      );
+      if (exists) return prev;
+      return [tx, ...prev];
+    });
+    void refreshTransactions();
+  }, [refreshTransactions]);
+
+  const handleRequestSmsPermission = useCallback(async () => {
+    const granted = await requestSmsPermission();
+    setSmsPermissionGranted(Boolean(granted));
+    if (granted && user?.uid) {
+      try {
+        const { startSmsTracking } = await import("../services/smsListenerService");
+        startSmsTracking(user.uid, handleIncomingSmsTransaction);
+      } catch (err) {
+        console.warn("Could not start SMS tracking:", err);
+      }
+    }
+    return Boolean(granted);
+  }, [handleIncomingSmsTransaction, user?.uid]);
+
+  const handleSimulateSms = useCallback(
+    async (rawBody?: string, senderAddress = "VK-SBIINB") => {
+      const body =
+        rawBody ||
+        "Dear UPI user A/C X1131 debited by 300.00 on date 18Sep26 trf to RIZWAN QURESHI Refno 626127227690 If not u? call-1800111109 for other services-18001234-SBI";
+      try {
+        const { simulateIncomingSms } = await import("../services/smsListenerService");
+        const result = await simulateIncomingSms(
+          user?.uid || "dev_user",
+          { body, originatingAddress: senderAddress },
+          handleIncomingSmsTransaction
+        );
+        return result;
+      } catch (err) {
+        console.warn("Simulation failed:", err);
+        return { success: false, reason: String(err) };
+      }
+    },
+    [handleIncomingSmsTransaction, user?.uid]
+  );
+
+  // Real-time Firestore transaction sync
+  useEffect(() => {
+    if (!user?.uid || typeof subscribeToPrivateTransactions !== "function") return;
+    let unsubscribeFirestore: (() => void) | undefined;
+    try {
+      unsubscribeFirestore = subscribeToPrivateTransactions(
+        user.uid,
+        (result: { transactions: PrivateTransaction[]; ignoredCount: number }) => {
+          setTransactionState({
+            transactions: result.transactions,
+            ignoredCount: result.ignoredCount,
+            loading: false,
+            error: null,
+            refreshError: null,
+          });
+        },
+        () => {
+          // Gracefully retain existing state on snapshot error
+        },
+      );
+    } catch {
+      // Ignored
+    }
+    return () => {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+    };
+  }, [user?.uid]);
+
+  // Background SMS Listener lifecycle
+  useEffect(() => {
+    let unsubscribeSms: (() => void) | undefined;
+    let isMounted = true;
+
+    if (user?.uid && Platform.OS === "android" && typeof checkSmsPermission === "function") {
+      void checkSmsPermission().then(async (granted) => {
+        if (!isMounted) return;
+        setSmsPermissionGranted(Boolean(granted));
+        if (granted) {
+          try {
+            const { startSmsTracking } = await import("../services/smsListenerService");
+            if (!isMounted) return;
+            unsubscribeSms = startSmsTracking(user.uid, handleIncomingSmsTransaction);
+          } catch {
+            // Ignored on unsupported environments
+          }
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+      if (unsubscribeSms) unsubscribeSms();
+      void import("../services/smsListenerService")
+        .then(({ stopSmsTracking }) => {
+          if (typeof stopSmsTracking === "function") stopSmsTracking();
+        })
+        .catch(() => {});
+    };
+  }, [handleIncomingSmsTransaction, user?.uid]);
+
   useFocusEffect(
     useCallback(() => {
       void refreshTransactions();
       void refreshStatements();
+      if (Platform.OS === "android") {
+        void checkSmsPermission().then((granted) => {
+          setSmsPermissionGranted(Boolean(granted));
+        });
+      }
       const activeStatementId = selectedStatementIdRef.current;
       if (activeStatementId) void loadInsightStatement(activeStatementId);
       return () => {
@@ -451,9 +606,45 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
     [loadInsightStatement, navigation],
   );
 
+  const isSmsTransaction = (tx: PrivateTransaction): boolean => {
+    return (
+      (tx as any).source === "SMS_AUTO_PARSE" ||
+      (tx as any).source === "sms" ||
+      tx.id.startsWith("ref_") ||
+      tx.id.startsWith("sms_")
+    );
+  };
+
+  const smsTransactions = useMemo(() => {
+    const map = new Map<string, PrivateTransaction>();
+    for (const tx of persistedSmsTransactions) {
+      if (tx?.id) map.set(tx.id, tx);
+    }
+    for (const tx of transactionState.transactions) {
+      if (isSmsTransaction(tx) && !map.has(tx.id)) {
+        map.set(tx.id, tx);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const dateA = new Date(a.date || a.createdAt || 0).getTime();
+      const dateB = new Date(b.date || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [persistedSmsTransactions, transactionState.transactions]);
+
+  const csvTransactions = useMemo(
+    () => transactionState.transactions.filter((tx) => !isSmsTransaction(tx)),
+    [transactionState.transactions],
+  );
+
   const transactionInsights = useMemo(
     () => buildFinancialInsights(transactionState.transactions) as FinancialInsights,
     [transactionState.transactions],
+  );
+
+  const csvInsights = useMemo(
+    () => buildFinancialInsights(csvTransactions) as FinancialInsights,
+    [csvTransactions],
   );
 
   return (
@@ -485,15 +676,24 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
             error={transactionState.error}
             refreshError={transactionState.refreshError}
             onRetry={() => void refreshTransactions()}
+            smsPermissionGranted={smsPermissionGranted}
+            onRequestSmsPermission={handleRequestSmsPermission}
           />,
-          <TransactionsContent key="Transactions" navigation={navigation} />,
+          <TransactionsContent
+            key="Transactions"
+            navigation={navigation}
+            transactions={smsTransactions}
+            smsPermissionGranted={smsPermissionGranted}
+            onRequestSmsPermission={handleRequestSmsPermission}
+            onSimulateSms={handleSimulateSms}
+          />,
           <InsightsContent
             key="Insights"
             navigation={navigation}
             view={insightsView}
             onChangeView={handleInsightsView}
-            transactions={transactionState.transactions}
-            insights={transactionInsights}
+            transactions={csvTransactions}
+            insights={csvInsights}
             ignoredCount={transactionState.ignoredCount}
             loading={transactionState.loading}
             error={transactionState.error}
@@ -516,6 +716,12 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
         ]}
       />
       <DemographicPromptModal onCompleted={() => {}} />
+      {activeToast ? (
+        <SmsInterceptionToast
+          transaction={activeToast}
+          onDismiss={() => setActiveToast(null)}
+        />
+      ) : null}
     </FinSightShell>
   );
 }

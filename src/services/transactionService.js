@@ -12,7 +12,17 @@ const STORED_TRANSACTION_FIELDS = [
   "sanitizedDescription",
   "type",
 ];
-const OPTIONAL_STORED_TRANSACTION_FIELDS = ["merchantKey"];
+const OPTIONAL_STORED_TRANSACTION_FIELDS = [
+  "merchantKey",
+  "id",
+  "description",
+  "merchant",
+  "accountMask",
+  "referenceNo",
+  "source",
+  "createdAt",
+  "userId",
+];
 
 const MAX_TRANSACTION_AMOUNT = 1_000_000_000_000;
 const TRANSACTION_TYPES = new Set(["DEBIT", "CREDIT"]);
@@ -50,9 +60,13 @@ function assertUserId(userId) {
 }
 
 function isRealIsoDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  if (typeof value !== "string") return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime());
 }
 
 function hasExactStoredFields(data) {
@@ -82,13 +96,17 @@ export function isCleanStoredTransaction(data) {
   );
 }
 
+function isValidTransactionId(id) {
+  return typeof id === "string" && (/^csv_[a-f0-9]{16}$/.test(id) || /^(ref_[A-Za-z0-9_-]+|sms_[0-9._-]+)$/.test(id));
+}
+
 function readPrivateTransactionSnapshot(snapshot) {
   const transactions = [];
   let ignoredCount = 0;
 
   snapshot.docs.forEach((documentSnapshot) => {
     const data = documentSnapshot.data();
-    if (!/^csv_[a-f0-9]{16}$/.test(documentSnapshot.id) || !isCleanStoredTransaction(data)) {
+    if (!isValidTransactionId(documentSnapshot.id) || !isCleanStoredTransaction(data)) {
       ignoredCount += 1;
       return;
     }

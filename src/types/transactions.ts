@@ -64,6 +64,13 @@ export interface PrivateTransaction {
   sanitizedDescription: string;
   category: TransactionCategory;
   merchantKey?: MerchantBrandKey;
+  merchant?: string;
+  description?: string;
+  referenceNo?: string;
+  accountMask?: string;
+  source?: string;
+  createdAt?: string;
+  userId?: string;
 }
 
 export interface CategoryInsight {

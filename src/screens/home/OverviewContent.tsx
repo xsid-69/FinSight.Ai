@@ -1,9 +1,10 @@
 import React from "react";
-import { Image, StyleSheet, useWindowDimensions } from "react-native";
+import { Image, Platform, StyleSheet, useWindowDimensions } from "react-native";
 import { ScrollView, Text, View, XStack, YStack } from "tamagui";
 import { MotiView } from "moti";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SmsPermissionBanner } from "../../components/SmsPermissionBanner";
 import {
   AlertCircle,
   ArrowRight,
@@ -54,6 +55,8 @@ interface OverviewContentProps {
   error?: string | null;
   refreshError?: string | null;
   onRetry?: () => void;
+  smsPermissionGranted?: boolean;
+  onRequestSmsPermission?: () => void;
 }
 
 function formatInrLabel(amount: number) {
@@ -286,6 +289,8 @@ export function OverviewContent({
   error = null,
   refreshError = null,
   onRetry,
+  smsPermissionGranted = false,
+  onRequestSmsPermission,
 }: OverviewContentProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -597,6 +602,13 @@ export function OverviewContent({
               </XStack>
             ) : null}
           </YStack>
+
+          {/* SMS Auto-Spend Tracking Banner if permission not yet granted */}
+          {Platform.OS === "android" && !smsPermissionGranted && onRequestSmsPermission ? (
+            <YStack marginTop={16}>
+              <SmsPermissionBanner onRequestPermission={onRequestSmsPermission} />
+            </YStack>
+          ) : null}
 
           {/* Interactive Snapping Carousel with 3D Banners */}
           <InteractiveBannerCarousel
