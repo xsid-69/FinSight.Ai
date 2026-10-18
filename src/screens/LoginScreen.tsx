@@ -83,9 +83,11 @@ function PrimaryAction({
   return (
     <View
       minHeight={54}
+      width="100%"
       borderRadius={15}
       overflow="hidden"
       marginTop={20}
+      alignSelf="center"
       opacity={loading ? 0.72 : 1}
       pressStyle={loading ? undefined : { scale: 0.98, opacity: 0.95 }}
       onPress={loading ? undefined : onPress}
@@ -97,13 +99,21 @@ function PrimaryAction({
         colors={headerGradient as unknown as [string, string, string]}
         start={gradientStart}
         end={gradientEnd}
-        style={{ minHeight: 54, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 }}
+        style={{
+          minHeight: 54,
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "row",
+          gap: 8,
+          paddingHorizontal: 16,
+        }}
       >
         {loading ? (
           <ActivityIndicator color="white" accessibilityLabel={`${label} in progress`} />
         ) : (
           <>
-            <Text fontSize={16} fontWeight="800" color="white">{label}</Text>
+            <Text fontSize={16} fontWeight="800" color="white" textAlign="center">{label}</Text>
             <ArrowRight size={18} color="white" strokeWidth={2.6} />
           </>
         )}
@@ -151,7 +161,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
 
   return (
     <View flex={1} backgroundColor="$background">
-      <View height={insets.top + 206} overflow="hidden">
+      <View height={Math.min(insets.top + 185, 230)} overflow="hidden">
         <LinearGradient colors={headerGradient as unknown as [string, string, string]} start={gradientStart} end={gradientEnd} style={FILL} />
         <View
           position="absolute"
@@ -176,7 +186,14 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
           accessible={false}
           importantForAccessibility="no-hide-descendants"
         />
-        <YStack paddingTop={insets.top + 10} paddingHorizontal={20} gap={20}>
+        <YStack
+          paddingTop={insets.top + 10}
+          paddingHorizontal={20}
+          gap={18}
+          width="100%"
+          maxWidth={480}
+          alignSelf="center"
+        >
           <XStack alignItems="center" justifyContent="space-between">
             <View
               width={48}
@@ -198,7 +215,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
           </XStack>
           <YStack gap={4}>
             <Text fontSize={10.5} lineHeight={15} fontWeight="800" color="rgba(255,255,255,0.72)" letterSpacing={1.15}>SECURE ACCOUNT ACCESS</Text>
-            <Text maxWidth={300} fontSize={23} lineHeight={29} fontWeight="800" color="white" accessibilityRole="header">Your financial workspace, ready when you are.</Text>
+            <Text maxWidth={320} fontSize={22} lineHeight={28} fontWeight="800" color="white" accessibilityRole="header">Your financial workspace, ready when you are.</Text>
           </YStack>
         </YStack>
       </View>
@@ -206,16 +223,22 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 20,
+            paddingBottom: Math.max(insets.bottom, 24) + 24,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           <MotiView
             from={{ opacity: reducedMotion ? 1 : 0, translateY: reducedMotion ? 0 : 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: "timing", duration: reducedMotion ? 1 : 360 }}
-            style={{ marginTop: -24 }}
+            style={{ width: "100%", maxWidth: 440, alignSelf: "center", marginTop: -20 }}
           >
-            <Card padding={20} borderColor="$borderStrong" shadowOpacity={0.1} shadowRadius={24}>
+            <Card width="100%" maxWidth={440} alignSelf="center" padding={20} borderColor="$borderStrong" shadowOpacity={0.1} shadowRadius={24}>
               <YStack gap={5} marginBottom={22}>
                 <Text fontSize={25} lineHeight={31} fontWeight="800" color="$navy" letterSpacing={-0.6} accessibilityRole="header">Welcome back</Text>
                 <Text fontSize={14} lineHeight={20} color="$ink2">
@@ -292,7 +315,16 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
               ) : null}
             </Card>
 
-            <Text textAlign="center" fontSize={11.5} lineHeight={17} color="$secondary" marginTop={16} paddingHorizontal={20}>
+            <Text
+              textAlign="center"
+              fontSize={11.5}
+              lineHeight={17}
+              color="$secondary"
+              marginTop={16}
+              paddingHorizontal={20}
+              maxWidth={400}
+              alignSelf="center"
+            >
               FinSight uses your authenticated account to restore your private session. No payment-card partnership is implied.
             </Text>
           </MotiView>

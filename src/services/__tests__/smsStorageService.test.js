@@ -5,6 +5,9 @@ import {
   saveSmsTransactionToDb,
   syncSmsTransactions,
   subscribeToSmsTransactions,
+  addManualTransaction,
+  removeLocalSmsTransaction,
+  clearAllSmsTransactions,
 } from '../smsStorageService';
 
 jest.mock('../../config/firebase', () => ({
@@ -14,9 +17,15 @@ jest.mock('../../config/firebase', () => ({
 jest.mock('firebase/firestore', () => ({
   collection: jest.fn(() => ({})),
   doc: jest.fn(() => ({})),
+  writeBatch: jest.fn(() => ({
+    delete: jest.fn(),
+    commit: jest.fn().mockResolvedValue(undefined),
+  })),
   getDocs: jest.fn(async () => ({
     forEach: (cb) => {
       cb({
+        id: 'ref_cloud_123',
+        ref: {},
         data: () => ({
           id: 'ref_cloud_123',
           amount: 500,
@@ -56,8 +65,8 @@ describe('smsStorageService', () => {
     id: 'ref_112233445566',
     amount: 300,
     type: 'DEBIT',
-    merchant: 'RIZWAN QURESHI',
-    category: 'TRANSFER',
+    merchant: 'AMAZON PAY',
+    category: 'SHOPPING',
     referenceNo: '112233445566',
     date: '2026-09-18',
   };
@@ -84,7 +93,7 @@ describe('smsStorageService', () => {
 
     const loaded = await loadLocalSmsTransactions('user_1');
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].merchant).toBe('RIZWAN QURESHI');
+    expect(loaded[0].merchant).toBe('AMAZON PAY');
   });
 
   it('deduplicates transactions with identical id or referenceNo', async () => {
@@ -119,5 +128,45 @@ describe('smsStorageService', () => {
 
     expect(typeof unsubscribe).toBe('function');
     unsubscribe();
+  });
+
+  it('adds manual transactions with manual tag and persists them', async () => {
+    const manualTx = await addManualTransaction('user_1', {
+      amount: 450,
+      type: 'DEBIT',
+      merchant: 'Local Cafe',
+      category: 'FOOD',
+    });
+
+    expect(manualTx.merchant).toBe('Local Cafe');
+    expect(manualTx.amount).toBe(450);
+    expect(manualTx.isManual).toBe(true);
+
+    const loaded = await loadLocalSmsTransactions('user_1');
+    expect(loaded.some((t) => t.id === manualTx.id)).toBe(true);
+  });
+
+  it('removes local transactions by id', async () => {
+    await saveLocalSmsTransaction('user_1', sampleTx1);
+    await saveLocalSmsTransaction('user_1', sampleTx2);
+
+    const remaining = await removeLocalSmsTransaction('user_1', sampleTx1.id);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe(sampleTx2.id);
+
+    const reloaded = await loadLocalSmsTransactions('user_1');
+    expect(reloaded).toHaveLength(1);
+    expect(reloaded[0].id).toBe(sampleTx2.id);
+  });
+
+  it('clears all transactions for a user', async () => {
+    await saveLocalSmsTransaction('user_1', sampleTx1);
+    await saveLocalSmsTransaction('user_1', sampleTx2);
+
+    const result = await clearAllSmsTransactions('user_1');
+    expect(result).toBe(true);
+
+    const reloaded = await loadLocalSmsTransactions('user_1');
+    expect(reloaded).toEqual([]);
   });
 });

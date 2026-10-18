@@ -167,5 +167,79 @@ describe('smsParser - Bank SMS Engine', () => {
       expect(result).not.toBeNull();
       expect(result.id).toMatch(/^sms_150_\d+$/);
     });
+
+    it('correctly parses IDFC First, Federal Bank, and AU Bank SMS', () => {
+      const idfcSms = 'Dear Customer, your IDFC FIRST Bank A/c ending 8899 is debited for INR 1,250.00 on 24-09-2026. Info: UPI/426819281729/Swiggy. Avl Bal: INR 15,400.00';
+      const resIdfc = parseBankSms(idfcSms, 'CP-IDFCFB');
+      expect(resIdfc).not.toBeNull();
+      expect(resIdfc.amount).toBe(1250.0);
+      expect(resIdfc.type).toBe('DEBIT');
+      expect(resIdfc.merchant).toBe('Swiggy');
+      expect(resIdfc.category).toBe('FOOD');
+
+      const fedSms = 'Your Federal Bank A/c XX4321 is credited with Rs 15,000.00 on 24-09-26 towards Salary. Ref 991827364512.';
+      const resFed = parseBankSms(fedSms, 'AD-FEDBNK');
+      expect(resFed).not.toBeNull();
+      expect(resFed.amount).toBe(15000.0);
+      expect(resFed.type).toBe('CREDIT');
+      expect(resFed.category).toBe('INCOME');
+
+      const auSms = 'Sent Rs. 350.00 from AU Bank A/c 5678 to Uber via UPI Ref 882910293841 on 24/09/2026.';
+      const resAu = parseBankSms(auSms, 'VK-AUBANK');
+      expect(resAu).not.toBeNull();
+      expect(resAu.amount).toBe(350.0);
+      expect(resAu.type).toBe('DEBIT');
+      expect(resAu.merchant).toBe('Uber');
+      expect(resAu.category).toBe('TRANSPORTATION');
+    });
+
+    it('correctly parses card swipe / POS spend at Starbucks and DMart', () => {
+      const cardSms = 'INR 540.00 spent on your Card ending 1234 at STARBUCKS on 24-SEP-26. Avl Lmt: INR 85,000.';
+      const res = parseBankSms(cardSms, 'AD-HDFCBK');
+      expect(res).not.toBeNull();
+      expect(res.amount).toBe(540.0);
+      expect(res.type).toBe('DEBIT');
+      expect(res.merchant).toBe('STARBUCKS');
+      expect(res.category).toBe('FOOD');
+      expect(res.accountMask).toBe('A/c *1234');
+
+      const dmartSms = 'Txn of INR 2,499.00 done on Card ending 9876 at DMART on 23-Sep-2026. Ref no 554433221100.';
+      const resDmart = parseBankSms(dmartSms, 'ICICIB');
+      expect(resDmart).not.toBeNull();
+      expect(resDmart.amount).toBe(2499.0);
+      expect(resDmart.type).toBe('DEBIT');
+      expect(resDmart.merchant).toBe('DMART');
+      expect(resDmart.category).toBe('SHOPPING');
+    });
+
+    it('correctly parses auto-debits and cash withdrawals', () => {
+      const autoDebit = 'Auto-debit of Rs 999.00 for Netflix on A/c XX4321 successful on 24-09-2026. Ref: 778899001122';
+      const resAuto = parseBankSms(autoDebit, 'VK-KOTAKB');
+      expect(resAuto).not.toBeNull();
+      expect(resAuto.amount).toBe(999.0);
+      expect(resAuto.type).toBe('DEBIT');
+      expect(resAuto.merchant).toBe('Netflix');
+      expect(resAuto.category).toBe('ENTERTAINMENT');
+
+      const atmSms = 'Rs 2,000.00 withdrawn at SBI ATM from A/c XX1234 on 24-09-2026. Bal: Rs 14,000.';
+      const resAtm = parseBankSms(atmSms, 'VK-SBIINB');
+      expect(resAtm).not.toBeNull();
+      expect(resAtm.amount).toBe(2000.0);
+      expect(resAtm.type).toBe('DEBIT');
+      expect(resAtm.category).toBe('CASH');
+    });
+
+    it('correctly parses ICICI UPI slash merchant alert', () => {
+      const iciciSms = 'Your A/C XX4321 is debited for Rs 69.50 on 26-Sep-26 by UPI/Zomato/UPI-Ref 112233445566. Avail Bal: Rs 12,000.00';
+      const res = parseBankSms(iciciSms, 'VK-ICICIB');
+      expect(res).not.toBeNull();
+      expect(res.amount).toBe(69.5);
+      expect(res.type).toBe('DEBIT');
+      expect(res.merchant).toBe('Zomato');
+      expect(res.category).toBe('FOOD');
+      expect(res.referenceNo).toBe('112233445566');
+      expect(res.accountMask).toBe('A/c XX4321');
+    });
   });
 });
+

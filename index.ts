@@ -1,8 +1,19 @@
-import { registerRootComponent } from 'expo';
+import "./src/services/polyfills";
+import { AppRegistry } from "react-native";
+import { registerRootComponent } from "expo";
+import App from "./App";
+import { RNAndroidNotificationListenerHeadlessJsName } from "react-native-android-notification-listener";
+import { processIncomingNotification } from "./src/services/notificationService";
 
-import App from './App';
-
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
+// Register Main App
 registerRootComponent(App);
+
+// Register Headless Background Notification Task
+AppRegistry.registerHeadlessTask(
+  RNAndroidNotificationListenerHeadlessJsName,
+  () => async ({ notification }: { notification: any }) => {
+    if (notification) {
+      await processIncomingNotification(notification);
+    }
+  }
+);

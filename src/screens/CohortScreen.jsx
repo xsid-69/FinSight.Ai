@@ -107,12 +107,14 @@ const PEER_AVATARS = [
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80",
 ];
 
-// Fallback spend for demonstration before bank statements are imported
-const FALLBACK_CATEGORY_TOTALS = {
-  FOOD: 6200,
-  SHOPPING: 2400,
-  TRAVEL: 1500,
-  ENTERTAINMENT: 1300,
+// Clean zero spend for new users starting from scratch
+const ZERO_CATEGORY_TOTALS = {
+  FOOD: 0,
+  SHOPPING: 0,
+  TRAVEL: 0,
+  ENTERTAINMENT: 0,
+  hasRealData: false,
+  totalDiscretionary: 0,
 };
 
 function formatCurrency(amount) {
@@ -196,7 +198,7 @@ export function CohortScreen({ navigation }) {
     };
   }, [user?.uid]);
 
-  // Aggregate user category spend
+  // Aggregate user category spend - starts completely blank for new users
   const userCategoryTotals = useMemo(() => {
     if (hasRealTransactions && realTransactions.length > 0) {
       const agg = aggregateCategoryTotals(realTransactions);
@@ -204,7 +206,7 @@ export function CohortScreen({ navigation }) {
         return agg;
       }
     }
-    return FALLBACK_CATEGORY_TOTALS;
+    return ZERO_CATEGORY_TOTALS;
   }, [hasRealTransactions, realTransactions]);
 
   const activeCohort =
@@ -216,8 +218,28 @@ export function CohortScreen({ navigation }) {
 
   // Compute KDE percentiles, stance, and strategies in <5ms
   const metrics = useMemo(() => {
-    return calculateCohortMetrics(userCategoryTotals, activeCohort);
-  }, [userCategoryTotals, activeCohort]);
+    const rawMetrics = calculateCohortMetrics(userCategoryTotals, activeCohort);
+    if (!hasRealTransactions) {
+      return {
+        ...rawMetrics,
+        overallPercentile: 0,
+        totalUserSpend: 0,
+        categoryPercentiles: {
+          FOOD: 0,
+          SHOPPING: 0,
+          TRAVEL: 0,
+          ENTERTAINMENT: 0,
+        },
+        stance: {
+          type: "SCRATCH",
+          title: "Starting From Scratch",
+          badgeLabel: "🌱 Starting From Scratch · Unranked",
+          description: "Your financial profile is blank. Import a statement or log transactions to unlock live peer percentiles and ranking.",
+        },
+      };
+    }
+    return rawMetrics;
+  }, [userCategoryTotals, activeCohort, hasRealTransactions]);
 
   // Dynamically calculate the real user's ranking in the cohort and build strict Top 5
   const dynamicLeaderboard = useMemo(() => {
@@ -471,13 +493,12 @@ export function CohortScreen({ navigation }) {
             </View>
           </Pressable>
 
-          {/* Fallback notice if in actual mode with demo data */}
+          {/* Notice for new users starting from scratch */}
           {!hasRealTransactions && (
             <View style={styles.demoBanner} testID="cohort-demo-banner">
               <Sparkles size={14} color="#D97706" />
               <Text style={styles.demoBannerText}>
-                Displaying demo peer benchmarks. Import statements to calculate
-                live against your verified accounts.
+                Start from scratch: No dummy data loaded. Import your bank statement or record transactions to calculate your live standing.
               </Text>
             </View>
           )}

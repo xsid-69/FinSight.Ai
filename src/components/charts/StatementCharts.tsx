@@ -169,8 +169,9 @@ export function MonthlyCashFlowChart({
     () => range === "all" ? data : data.slice(-range),
     [data, range],
   );
+  const lastVisibleMonth = visibleMonths.length > 0 ? visibleMonths[visibleMonths.length - 1] : null;
   const [selectedMonthId, setSelectedMonthId] = useState<string | null>(
-    visibleMonths.at(-1)?.month ?? null,
+    lastVisibleMonth?.month ?? null,
   );
 
   useEffect(() => {
@@ -179,12 +180,13 @@ export function MonthlyCashFlowChart({
 
   useEffect(() => {
     if (!visibleMonths.some((month) => month.month === selectedMonthId)) {
-      setSelectedMonthId(visibleMonths.at(-1)?.month ?? null);
+      const fallback = visibleMonths.length > 0 ? visibleMonths[visibleMonths.length - 1] : null;
+      setSelectedMonthId(fallback?.month ?? null);
     }
   }, [selectedMonthId, visibleMonths]);
 
   const selectedMonth = visibleMonths.find((month) => month.month === selectedMonthId)
-    ?? visibleMonths.at(-1)
+    ?? (visibleMonths.length > 0 ? visibleMonths[visibleMonths.length - 1] : null)
     ?? null;
   // Keep the domain stable when a series is hidden so the remaining bars do
   // not visually change magnitude and undermine financial comparison.

@@ -1,7 +1,8 @@
-import SmsListener from '@dr.pogodin/react-native-sms-listener';
+import { SmsListenerBridge } from './smsListenerBridge';
 import { parseBankSms } from './smsParser';
 import {
   hasSmsTransaction,
+  loadLocalSmsTransactions,
   saveLocalSmsTransaction,
   saveSmsTransactionToDb,
 } from './smsStorageService';
@@ -9,20 +10,80 @@ import * as Haptics from 'expo-haptics';
 
 let subscription = null;
 
+/**
+ * Reads recent SMS from device inbox and imports any missed bank transactions.
+ */
+export async function syncInboxSms(userId, onNewTransaction, limit = 100) {
+  const effectiveUserId = userId || 'guest';
+  try {
+    const messages = await SmsListenerBridge.readRecentSms(limit);
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return { imported: 0 };
+    }
+
+    let importedCount = 0;
+    const seenRefs = new Set();
+    const existing = await loadLocalSmsTransactions(effectiveUserId);
+    const existingRefs = new Set(existing.map((t) => t.referenceNo || t.id).filter(Boolean));
+
+    for (const message of messages) {
+      if (!message || !message.body) continue;
+
+      const parsedTx = parseBankSms(message.body, message.originatingAddress);
+      if (!parsedTx) continue;
+
+      parsedTx.userId = effectiveUserId;
+      if (!parsedTx.sanitizedDescription) {
+        parsedTx.sanitizedDescription = parsedTx.merchant || 'Bank Transfer';
+      }
+
+      const refKey = parsedTx.referenceNo || parsedTx.id;
+      if (seenRefs.has(refKey) || existingRefs.has(refKey)) {
+        continue;
+      }
+      seenRefs.add(refKey);
+
+      // 1. Persist locally to AsyncStorage immediately
+      await saveLocalSmsTransaction(effectiveUserId, parsedTx);
+
+      // 2. Persist to dedicated Cloud Firestore collection if authenticated
+      if (effectiveUserId !== 'guest') {
+        void saveSmsTransactionToDb(effectiveUserId, parsedTx);
+      }
+
+      importedCount++;
+
+      // Trigger callback
+      if (typeof onNewTransaction === 'function') {
+        onNewTransaction(parsedTx);
+      }
+    }
+
+    return { imported: importedCount };
+  } catch (error) {
+    console.warn('Error syncing SMS inbox:', error);
+    return { imported: 0, error };
+  }
+}
+
 export function startSmsTracking(userId, onNewTransaction) {
   if (subscription) {
     subscription.remove();
     subscription = null;
   }
 
-  if (!userId) return () => {};
+  const effectiveUserId = userId || 'guest';
 
-  if (!SmsListener || typeof SmsListener.addListener !== 'function') {
+  if (!SmsListenerBridge || typeof SmsListenerBridge.addListener !== 'function') {
     console.warn('SMS Listener is not available in current environment.');
     return () => {};
   }
 
-  subscription = SmsListener.addListener(async (message) => {
+  // 1. Automatically sync recent inbox messages to capture any SMS received prior to launch
+  void syncInboxSms(effectiveUserId, onNewTransaction, 50);
+
+  // 2. Real-time listener for incoming SMS
+  subscription = SmsListenerBridge.addListener(async (message) => {
     try {
       if (!message || !message.body) return;
 
@@ -73,6 +134,7 @@ export function stopSmsTracking() {
     subscription.remove();
     subscription = null;
   }
+
 }
 
 /**

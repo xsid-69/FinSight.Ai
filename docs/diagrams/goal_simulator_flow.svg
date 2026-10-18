@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 560" width="100%" height="100%">
+  <defs>
+    <linearGradient id="simBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <marker id="arBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; fill: #FFFFFF; font-size: 20px; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; fill: #94A3B8; font-size: 13px; }
+    .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 13px; fill: #FFFFFF; }
+    .box-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94A3B8; }
+  </style>
+
+  <rect width="1050" height="560" rx="16" fill="url(#simBg)" stroke="#1E293B" stroke-width="2"/>
+
+  <text x="50" y="45" class="title">What-If Goal Affordability Simulator Decision Tree</text>
+  <text x="50" y="66" class="subtitle">Additive Holt-Winters Formulation Overlaying Purchase Shock vs 18-Month Liquid Reserve</text>
+
+  <!-- Step 1: User Goal Input -->
+  <g transform="translate(50, 100)">
+    <rect width="250" height="110" rx="10" fill="#182030" stroke="#38BDF8" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#38BDF8">1. Target Purchase Input</text>
+    <text x="20" y="55" class="box-text">Item: 'iPhone 17'</text>
+    <text x="20" y="75" class="box-text">Cost: ₹1,00,000 Upfront</text>
+    <text x="20" y="95" class="box-text">Timeline: Month 6 (M+6)</text>
+  </g>
+
+  <path d="M 300 155 L 340 155" stroke="#38BDF8" stroke-width="2" marker-end="url(#arBlue)"/>
+
+  <!-- Step 2: Time Series Prep -->
+  <g transform="translate(350, 100)">
+    <rect width="290" height="110" rx="10" fill="#182030" stroke="#818CF8" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#818CF8">2. Baseline Cash Decomposition</text>
+    <text x="20" y="55" class="box-text">Level (alpha): Current liquid baseline</text>
+    <text x="20" y="75" class="box-text">Trend (beta): Net inflow / outflow slope</text>
+    <text x="20" y="95" class="box-text">Seasonality (gamma): Periodic expenditure</text>
+  </g>
+
+  <path d="M 640 155 L 680 155" stroke="#38BDF8" stroke-width="2" marker-end="url(#arBlue)"/>
+
+  <!-- Step 3: Runway Shock Injection -->
+  <g transform="translate(690, 100)">
+    <rect width="310" height="110" rx="10" fill="#182030" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#F59E0B">3. 18-Month Projection &amp; Shock</text>
+    <text x="20" y="55" class="box-text">Curve A: Without purchase trajectory</text>
+    <text x="20" y="75" class="box-text">Curve B: Deduct ₹1L at Month 6</text>
+    <text x="20" y="95" class="box-text">Evaluate Minimum Post-Purchase Cash</text>
+  </g>
+
+  <!-- Connect Down to Decision Branches -->
+  <path d="M 845 210 L 845 250 L 525 250 L 525 280" stroke="#38BDF8" stroke-width="2" marker-end="url(#arBlue)"/>
+
+  <!-- Three Decision Branches -->
+  <!-- Branch 1: Safe -->
+  <g transform="translate(50, 300)">
+    <rect width="290" height="130" rx="10" fill="#11291E" stroke="#10B981" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#34D399">🟢 Score &gt;= 75: Safe Purchase</text>
+    <text x="20" y="55" class="box-text">Full price covered with ample reserve.</text>
+    <text x="20" y="75" class="box-text">Runway stays positive through 18 mo.</text>
+    <text x="20" y="95" class="box-text">Emergency fund remains 100% intact.</text>
+    <text x="20" y="115" class="box-text">Action: Proceed with confidence.</text>
+  </g>
+
+  <!-- Branch 2: Caution (Actual Real Screenshot Case) -->
+  <g transform="translate(370, 300)">
+    <rect width="310" height="130" rx="10" fill="#2A2013" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#FBBF24">🟡 Score 50-74: Possible, but Tight</text>
+    <text x="20" y="55" class="box-text">Matches Real Device Capture (iPhone 17):</text>
+    <text x="20" y="75" class="box-text">Cash after purchase: ₹2,85,594</text>
+    <text x="20" y="95" class="box-text">Lowest projected cash: ₹2,85,594</text>
+    <text x="20" y="115" class="box-text">Action: Trim discretionary spend by ₹3,000/mo.</text>
+  </g>
+
+  <!-- Branch 3: High Risk -->
+  <g transform="translate(710, 300)">
+    <rect width="290" height="130" rx="10" fill="#2E1619" stroke="#EF4444" stroke-width="1.5"/>
+    <text x="20" y="30" class="box-title" fill="#F87171">🔴 Score &lt; 50: Financial Hazard</text>
+    <text x="20" y="55" class="box-text">Depletes critical safety buffer.</text>
+    <text x="20" y="75" class="box-text">High vulnerability to unexpected shocks.</text>
+    <text x="20" y="95" class="box-text">Negative cash runway within 12 months.</text>
+    <text x="20" y="115" class="box-text">Action: Delay goal by 3 to 6 months.</text>
+  </g>
+
+  <!-- Bottom Synthesis Bar -->
+  <g transform="translate(50, 460)">
+    <rect width="950" height="60" rx="8" fill="#131D2E" stroke="#1E3A8A" stroke-width="1"/>
+    <text x="25" y="26" style="font-family: sans-serif; font-weight: 700; fill: #60A5FA; font-size: 12px;">📊 MATHEMATICAL FACT INJECTION TO AI COPILOT:</text>
+    <text x="25" y="46" style="font-family: sans-serif; fill: #CBD5E1; font-size: 11px;">"Lowest projected cash is ₹2,85,594. Reserve test is tight." Validated via Zod before GPT-4o-mini produces natural advice.</text>
+  </g>
+</svg>

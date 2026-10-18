@@ -1,4 +1,7 @@
-import { merchantBrandDisplayName } from "./merchantBrandRegistry";
+import {
+  merchantBrandDisplayName,
+  resolveMerchantBrandKey,
+} from "./merchantBrandRegistry";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -53,25 +56,282 @@ export function categoryLabel(category) {
   return labels[category] || String(category || "Other");
 }
 
+const KNOWN_MERCHANT_EXPANSIONS = Object.freeze({
+  "bablu ki": "Bablu Kirana",
+  "hardcast": "McDonald's (Hardcastle)",
+  "one97 co": "One97 (Paytm)",
+  "jk egg c": "JK Egg Center",
+  "super fr": "Super Fresh",
+  "oam indu": "Oam Industries",
+  "nagpur m": "Nagpur Metro Rail",
+  "zepto ma": "Zepto",
+  "irctc ti": "IRCTC Tickets",
+  "confirm": "ConfirmTkt",
+  "confirmtkt": "ConfirmTkt",
+  "ebznagpur": "EBZ Nagpur",
+  "maharash": "Maharashtra State",
+  "new yada": "New Yadav",
+  "manish t": "Manish Traders",
+  "fitness": "Fitness Center",
+  "gangour": "Gangour Sweets",
+  "shri kru": "Shri Krupa",
+  "principa": "Principal",
+  "princip": "Principal",
+  "edtech p": "EdTech",
+  "tea corner": "Tea Corner",
+  "jay bhol": "Jay Bhole",
+  "m a saha": "M A Sahani",
+  "hirurkar": "Hirurkar",
+  "lalit ja": "Lalit J.",
+  "mr anil": "Mr. Anil",
+  "mr nares": "Mr. Naresh",
+  "mr abhis": "Mr. Abhishek",
+  "mrs madh": "Mrs. Madhu",
+  "vinod ku": "Vinod Kumar",
+  "vimal pr": "Vimal Prasad",
+  "arun mah": "Arun Mahajan",
+  "seema gu": "Seema Gupta",
+  "mukesh m": "Mukesh M.",
+  "sanket m": "Sanket M.",
+  "chetan a": "Chetan A.",
+  "pratik p": "Pratik P.",
+  "krish vi": "Krish V.",
+  "krishvil": "Krishvil",
+  "prashikr": "Prashik R.",
+  "prashik": "Prashik",
+  "amit shi": "Amit S.",
+  "kunal mu": "Kunal M.",
+  "ganesh s": "Ganesh S.",
+  "master g": "Master G.",
+  "master a": "Master A.",
+  "sheikh r": "Sheikh R.",
+  "ravish r": "Ravish R.",
+  "jyoti an": "Jyoti A.",
+  "pranay g": "Pranay G.",
+  "joel ran": "Joel Ranvir",
+  "om raju": "Om Raju",
+  "shamuvel": "Shamuvel",
+  "mohammad": "Mohammad",
+  "kalpana": "Kalpana",
+  "shripad": "Shripad",
+  "dhillon": "Dhillon",
+  "sandeep": "Sandeep",
+  "manisha": "Manisha",
+});
+
+function toProperMerchantCase(str) {
+  if (!str) return "Transaction";
+  const acronyms = new Set([
+    "NPCI",
+    "BHIM",
+    "ATM",
+    "UPI",
+    "EBZ",
+    "JK",
+    "AWS",
+    "IRCTC",
+    "PVR",
+    "DMART",
+    "AI",
+    "SMS",
+  ]);
+  return str
+    .split(/\s+/)
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (acronyms.has(upper)) return upper;
+      if (/^(?:mr|dr)$/i.test(word)) return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() + ".";
+      if (/^mrs$/i.test(word)) return "Mrs.";
+      if (word.length === 1 && /[a-z]/i.test(word)) return word.toUpperCase() + ".";
+      if (/^[A-Z]\.$/.test(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 export function merchantLabel(description) {
   const normalized = String(description || "").replace(/\s+/g, " ").trim();
   if (!normalized) return "Transaction";
 
-  const withoutChannel = normalized.replace(
-    /^(?:upi|pos|ecs|neft|imps|rtgs|ach|atm|card)[\s/.:_-]+/i,
+  // Non-UPI special banking cases
+  if (/PFMS/i.test(normalized) && /DBT/i.test(normalized)) {
+    return "PFMS Govt DBT";
+  }
+  if (/PMSBY/i.test(normalized)) {
+    return "PMSBY Insurance Renewal";
+  }
+  if (/INTERES.*CREDIT/i.test(normalized)) {
+    return "Interest Credit";
+  }
+  if (/ATM\s+(?:WDL|CASH)/i.test(normalized)) {
+    if (/NAGPUR/i.test(normalized)) return "ATM Cash (Nagpur)";
+    return "ATM Cash Withdrawal";
+  }
+  if (/TATASTEELDIV/i.test(normalized)) {
+    return "Tata Steel Dividend";
+  }
+
+  let str = normalized;
+
+  // 1. Strip initial bank action / channel prefixes:
+  // e.g. "WDL TFR", "DEP TFR", "WDL", "DEP", "CWDR", "TFR", "TRF", "TRANSFER",
+  // "TRANSACTION MADE VIA", "TRANSACTION MADE", "TXN MADE VIA", "PAYMENT VIA", etc.
+  str = str.replace(
+    /^(?:(?:WDL|DEP|CWDR|TFR|TRF)\s+(?:TFR|TRF|TRANSFER)|WDL|DEP|CWDR|TFR|TRF|TRANSFER|WITHDRAWAL|DEPOSIT|TRANSACTION\s+MADE\s+VIA|TRANSACTION\s+MADE|TXN\s+MADE\s+VIA|PAYMENT\s+VIA|PAID\s+VIA)[\s/.:_-]*/i,
     "",
   );
-  const withoutHandle = withoutChannel.replace(
-    /@(?:upi|ybl|ibl|paytm|ok[a-z0-9]+)\b/gi,
+
+  // 2. Strip channel indicator: UPI, POS, NEFT, IMPS, RTGS, ECS, ACH, NACH, CMS, INB, MB, ATM, CARD, ECOM, TPAP
+  str = str.replace(
+    /^(?:UPI|POS|NEFT|IMPS|RTGS|ECS|ACH|NACH|CMS|INB|MB|ATM|CARD|ECOM|TPAP)[\s/.:_-]+/i,
     "",
   );
-  const merchant = withoutHandle.replace(/^[\s/.:_-]+|[\s/.:_-]+$/g, "").trim();
-  return merchant || normalized;
+
+  // 3. Strip DR/CR indicator: "DR/", "CR/", "DR-", "CR-"
+  str = str.replace(/^(?:DR|CR)[\s/.:_-]+/i, "");
+
+  // 4. Handle slash-separated bank UPI narratives:
+  // e.g. "XXXX/Utkarsh /UTKS/s upercard /Paid XXXX AT 00306 AKOLA"
+  // or "645726216708/Utkarsh /UTKS/supercard@/Paid..."
+  // or "123/ZOMATO, ONLINE"
+  let handleSegment = "";
+  if (str.includes("/")) {
+    const parts = str.split("/").map((p) => p.trim()).filter(Boolean);
+    if (
+      parts.length >= 3 &&
+      /^(?:REF|TXN)$/i.test(parts[0]) &&
+      (/^(?:[0-9xX*.-]{4,})$/i.test(parts[1]) || !isNaN(Number(parts[1])))
+    ) {
+      str = parts[2];
+      if (parts.length >= 4) {
+        handleSegment = parts[3];
+      }
+    } else if (
+      parts.length >= 2 &&
+      (/^(?:[0-9xX*.-]{4,}|REF.*|TXN.*)$/i.test(parts[0]) || !isNaN(Number(parts[0])))
+    ) {
+      // parts[1] is the merchant / recipient!
+      str = parts[1];
+      if (parts.length >= 4) {
+        handleSegment = parts[3];
+      }
+    } else if (parts.length >= 1) {
+      if (/^(?:DR|CR)$/i.test(parts[0]) && parts.length >= 2) {
+        if (
+          parts.length >= 3 &&
+          (/^(?:[0-9xX*.-]{4,}|REF.*|TXN.*)$/i.test(parts[1]) || !isNaN(Number(parts[1])))
+        ) {
+          str = parts[2];
+          if (parts.length >= 5) {
+            handleSegment = parts[4];
+          }
+        } else {
+          str = parts[1];
+          if (parts.length >= 4) {
+            handleSegment = parts[3];
+          }
+        }
+      } else {
+        str = parts[0];
+      }
+    }
+  }
+
+  // Handle Credit Reversal / Refund indicator
+  if (/^C\s*R(?:\s+[0-9xX*.-]+.*)?$/i.test(str)) {
+    return "Credit Reversal";
+  }
+  if (/^D\s*R(?:\s+[0-9xX*.-]+.*)?$/i.test(str)) {
+    return "Debit Adjustment";
+  }
+
+  // 5. Check handleSegment clues for high-confidence branding
+  const hLower = handleSegment.toLowerCase();
+  if (hLower.includes("metrorail")) return "Nagpur Metro Rail";
+  if (hLower.includes("amznplmacd")) return "McDonald's (Hardcastle)";
+  if (hLower.includes("zeptonow")) return "Zepto";
+  if (hLower.includes("bhimcashba")) return "NPCI BHIM Cashback";
+  if (hLower.includes("ranvirpata")) return "Joel Ranvir";
+  if (hLower.includes("thuteprana")) return "Pranay Thute";
+  if (hLower.includes("oamindustr")) return "Oam Industries";
+  if (hLower.includes("confirmtkt") || hLower.includes("confirmtic")) return "ConfirmTkt";
+  if (hLower.includes("irctc")) return "IRCTC Tickets";
+
+  // 6. Handle hyphen or dash separated narratives:
+  // e.g. "WDL-UPI-12345-ZOMATO" or "UPI-ZOMATO-12345"
+  if (str.includes("-") && !/\s/.test(str)) {
+    const parts = str.split("-").map((p) => p.trim()).filter(Boolean);
+    const candidate = parts.find(
+      (p) => !/^(?:[0-9xX*.-]{4,}|UPI|WDL|DEP|DR|CR|REF|TXN|[a-z]{4}0[a-z0-9]{6})$/i.test(p),
+    );
+    if (candidate) {
+      str = candidate;
+    }
+  }
+
+  // 7. Clean VPA handles and masked handle placeholders
+  str = str.replace(/@(?:upi|ybl|ibl|paytm|ok[a-z0-9]+|[a-z0-9.-]+)\b/gi, "");
+  str = str.replace(/@/g, "");
+  str = str.replace(/\bPRIVATE_HANDLE\b/gi, "");
+
+  // 8. Strip trailing bank narrative junk:
+  str = str.replace(/\s*(?:AT\s+\d+.*|\/Paid.*|\/UPI.*|\/Paym.*|REF\s+.*|UTR\s+.*|RRN\s+.*)$/i, "");
+  str = str.replace(/^(?:Paid|UPI|Paym|Transfer|Payment)\s+(?:to\s+)?/i, "");
+  str = str.replace(/\s*(?:Paid|UPI|Paym)\s+[0-9xX*.-]+.*$/i, "");
+  str = str.replace(/[\s/.:_-]+$/, "").replace(/^[\s/.:_-]+/, "").trim();
+
+  // If after cleaning it is empty or just generic keywords, fallback gracefully
+  if (!str || /^(?:XXXX|WDL|DEP|TFR|TRF|UPI|DR|CR|NA|NULL)$/i.test(str)) {
+    return (
+      toProperMerchantCase(
+        normalized
+          .replace(/^(?:(?:WDL|DEP)\s+TFR|WDL|DEP|TFR|TRF|UPI)[\s/.:_-]*/i, "")
+          .trim()
+      ) || "Transaction"
+    );
+  }
+
+  // 9. Check known expansions dictionary
+  const key = str.toLowerCase().trim();
+  if (KNOWN_MERCHANT_EXPANSIONS[key]) {
+    return KNOWN_MERCHANT_EXPANSIONS[key];
+  }
+
+  // Smushed initial: PRASHIKR -> Prashik R.
+  if (/^PRASHIKR$/i.test(str)) {
+    return "Prashik R.";
+  }
+
+  // Single trailing initial with space: SANKET M -> Sanket M.
+  const initialMatch = str.match(/^(.+)\s+([A-Z])$/i);
+  if (initialMatch) {
+    return (
+      toProperMerchantCase(initialMatch[1]) +
+      " " +
+      initialMatch[2].toUpperCase() +
+      "."
+    );
+  }
+
+  return toProperMerchantCase(str);
 }
 
 export function transactionMerchantLabel(transaction) {
-  return merchantBrandDisplayName(transaction?.merchantKey)
-    || merchantLabel(transaction?.sanitizedDescription);
+  const rawDesc =
+    transaction?.sanitizedDescription || transaction?.merchant || "";
+  const cleaned = merchantLabel(rawDesc);
+
+  const brandKey =
+    transaction?.merchantKey ||
+    resolveMerchantBrandKey(cleaned) ||
+    resolveMerchantBrandKey(rawDesc);
+
+  if (brandKey) {
+    const brandName = merchantBrandDisplayName(brandKey);
+    if (brandName) return brandName;
+  }
+
+  return cleaned;
 }
 
 function emptyInsights() {

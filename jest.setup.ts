@@ -56,7 +56,32 @@ jest.mock("@dr.pogodin/react-native-sms-listener", () => ({
       remove: jest.fn(),
     })),
   },
+}), { virtual: true });
+
+const mockRNNotificationListener = {
+  getPermissionStatus: jest.fn().mockResolvedValue("authorized"),
+  requestPermission: jest.fn(),
+};
+
+jest.mock("react-native-android-notification-listener", () => ({
+  __esModule: true,
+  RNAndroidNotificationListenerHeadlessJsName: "RNAndroidNotificationListenerHeadlessJs",
+  default: mockRNNotificationListener,
+  getPermissionStatus: mockRNNotificationListener.getPermissionStatus,
+  requestPermission: mockRNNotificationListener.requestPermission,
 }));
+
+const { NativeModules } = require("react-native");
+NativeModules.RNAndroidNotificationListener = mockRNNotificationListener;
+NativeModules.FinsightNotificationListener = {
+  getPermissionStatus: jest.fn(() => mockRNNotificationListener.getPermissionStatus()),
+  requestPermission: jest.fn(() => mockRNNotificationListener.requestPermission()),
+  openAppDetails: jest.fn(),
+  flushPendingNotifications: jest.fn().mockResolvedValue([]),
+  readActiveNotifications: jest.fn().mockResolvedValue([]),
+  addListener: jest.fn(),
+  removeListeners: jest.fn(),
+};
 
 jest.mock("firebase/app", () => ({
   __esModule: true,
@@ -74,6 +99,7 @@ jest.mock("firebase/auth", () => ({
 
 jest.mock("firebase/firestore", () => ({
   __esModule: true,
+  getFirestore: jest.fn(() => ({})),
   collection: jest.fn(),
   doc: jest.fn((_db?: unknown, ...parts: unknown[]) => ({ id: "mock-doc-id", path: parts.join("/") })),
   getDoc: jest.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),

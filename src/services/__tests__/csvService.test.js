@@ -590,12 +590,25 @@ describe("pickCsvFile", () => {
     const fileText = jest.fn();
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ name: "statement.xlsx", uri: "file:///statement.xlsx", size: 20, file: { text: fileText } }],
+      assets: [{ name: "statement.docx", uri: "file:///statement.docx", size: 20, file: { text: fileText } }],
     });
 
     await expect(pickCsvFile()).rejects.toMatchObject({ code: "INVALID_FILE_EXTENSION" });
     expect(fileText).not.toHaveBeenCalled();
   });
+
+  test("accepts .xlsx and .xls file extensions", async () => {
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ name: "statement.xlsx", uri: "file:///statement.xlsx", size: 20, file: { arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(10)) } }],
+    });
+
+    await expect(pickCsvFile()).resolves.toMatchObject({
+      canceled: false,
+      fileName: "statement.xlsx",
+    });
+  });
+
 
   test.each([
     [0, "CSV_EMPTY"],
@@ -749,6 +762,39 @@ describe("Firestore ingestion", () => {
     );
   });
 
+  test("runs picker, parser, and cloud save end to end with an Excel .xlsx statement", async () => {
+    const XLSX = require("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Date", "Narration", "Withdrawal Amount", "Deposit Amount"],
+      ["15/08/2025", "Swiggy Food Order", "450.00", ""],
+      ["20/08/2025", "Salary Credit", "", "65000.00"],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Statement");
+    const b64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+
+    LegacyFileSystem.readAsStringAsync.mockResolvedValue(b64);
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ name: "statement.xlsx", uri: "file:///statement.xlsx", size: 500 }],
+    });
+
+    const result = await importCsvStatement(USER_ID);
+
+    expect(result).toMatchObject({
+      canceled: false,
+      fileName: "statement.xlsx",
+      importedCount: 2,
+      savedCount: 2,
+      debitCount: 1,
+      creditCount: 1,
+      cloudSync: {
+        status: "synced",
+      },
+    });
+  });
+
+
   test("ends an end-to-end import cleanly when the picker is canceled", async () => {
     DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
     await expect(importCsvStatement(USER_ID)).resolves.toMatchObject({
@@ -762,5 +808,127 @@ describe("Firestore ingestion", () => {
     await expect(importCsvStatement("")).rejects.toBeInstanceOf(CsvImportError);
     await expect(importCsvStatement("")).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
     expect(DocumentPicker.getDocumentAsync).not.toHaveBeenCalled();
+  });
+
+  describe("universal statement recognition across all bank formats", () => {
+    test("parses Axis Bank format with Tran Date, PARTICULARS, DR, CR, and BAL", () => {
+      const csv = [
+        "Tran Date,CHQNO,PARTICULARS,DR,CR,BAL",
+        "01-02-2025,123456,UPI/ZOMATO/FOOD,450.00,,15000.00",
+        "02-02-2025,,SALARY CREDIT,,75000.00,90000.00",
+      ].join("\n");
+
+      const parsed = parseCsvStatement(csv, USER_ID);
+      expect(parsed.importedCount).toBe(2);
+      expect(parsed.transactions[0]).toMatchObject({
+        date: "2025-02-01",
+        amount: 450,
+        type: "DEBIT",
+        merchantKey: "zomato",
+      });
+      expect(parsed.transactions[1]).toMatchObject({
+        date: "2025-02-02",
+        amount: 75000,
+        type: "CREDIT",
+        category: "INCOME",
+      });
+    });
+
+    test("parses Kotak Bank format with Date, Transaction Details, Amount, and Dr / Cr", () => {
+      const csv = [
+        "Sl. No.,Date,Transaction Details,Chq / Ref No.,Amount,Dr / Cr,Balance",
+        "1,15/01/2025,SWIGGY BANGALORE,REF123,320.00,DR,12000.00",
+        "2,16/01/2025,INTEREST CREDIT,REF456,150.00,CR,12150.00",
+      ].join("\n");
+
+      const parsed = parseCsvStatement(csv, USER_ID);
+      expect(parsed.importedCount).toBe(2);
+      expect(parsed.transactions[0]).toMatchObject({
+        date: "2025-01-15",
+        amount: 320,
+        type: "DEBIT",
+        merchantKey: "swiggy",
+      });
+      expect(parsed.transactions[1]).toMatchObject({
+        date: "2025-01-16",
+        amount: 150,
+        type: "CREDIT",
+      });
+    });
+
+    test("parses multi-line / merged bank statement headers", () => {
+      const csv = [
+        "Date,Transaction Particulars,Transaction Amount,Transaction Amount,Balance",
+        ",,Withdrawal,Deposit,",
+        "05/03/2025,UBER TRIP,420.00,,9580.00",
+        "06/03/2025,REFUND,,100.00,9680.00",
+      ].join("\n");
+
+      const parsed = parseCsvStatement(csv, USER_ID);
+      expect(parsed.importedCount).toBe(2);
+      expect(parsed.transactions[0]).toMatchObject({
+        date: "2025-03-05",
+        amount: 420,
+        type: "DEBIT",
+        merchantKey: "uber",
+      });
+      expect(parsed.transactions[1]).toMatchObject({
+        date: "2025-03-06",
+        amount: 100,
+        type: "CREDIT",
+      });
+    });
+
+    test("infers table layout from content when column headers are unknown or non-standard", () => {
+      const csv = [
+        "UNKNOWN_HEADER_1,UNKNOWN_HEADER_2,UNKNOWN_HEADER_3,UNKNOWN_HEADER_4",
+        "2025-04-10,Amazon Retail,1499.00,",
+        "2025-04-11,Salary Deposit,,45000.00",
+      ].join("\n");
+
+      const parsed = parseCsvStatement(csv, USER_ID);
+      expect(parsed.importedCount).toBe(2);
+      expect(parsed.transactions[0]).toMatchObject({
+        date: "2025-04-10",
+        amount: 1499,
+        type: "DEBIT",
+        merchantKey: "amazon",
+      });
+      expect(parsed.transactions[1]).toMatchObject({
+        date: "2025-04-11",
+        amount: 45000,
+        type: "CREDIT",
+      });
+    });
+
+    test("parses single debit/charges statement without credit column", () => {
+      const csv = [
+        "Date,Description,Charges,Balance",
+        "01/01/2025,STARBUCKS COFFEE,350.00,9650.00",
+        "02/01/2025,DOMINOS PIZZA,650.00,9000.00",
+      ].join("\n");
+
+      const parsed = parseCsvStatement(csv, USER_ID);
+      expect(parsed.importedCount).toBe(2);
+      expect(parsed.transactions[0]).toMatchObject({
+        date: "2025-01-01",
+        amount: 350,
+        type: "DEBIT",
+        merchantKey: "starbucks",
+      });
+      expect(parsed.transactions[1]).toMatchObject({
+        date: "2025-01-02",
+        amount: 650,
+        type: "DEBIT",
+        merchantKey: "dominos",
+      });
+    });
+
+    test("normalizes Excel serial dates, day-of-week prefixes, and month-first dates", () => {
+      expect(normalizeTransactionDate("Monday, 18 Sep 2026")).toBe("2026-09-18");
+      expect(normalizeTransactionDate("Sep 18, 2026")).toBe("2026-09-18");
+      expect(normalizeTransactionDate("September 18, 2026")).toBe("2026-09-18");
+      expect(normalizeTransactionDate(45550)).toBe("2024-09-15");
+    });
   });
 });

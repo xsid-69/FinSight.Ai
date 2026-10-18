@@ -20,6 +20,8 @@ const OPTIONAL_STORED_TRANSACTION_FIELDS = [
   "accountMask",
   "referenceNo",
   "source",
+  "sourceApp",
+  "appPackage",
   "createdAt",
   "userId",
 ];
@@ -97,7 +99,7 @@ export function isCleanStoredTransaction(data) {
 }
 
 function isValidTransactionId(id) {
-  return typeof id === "string" && (/^csv_[a-f0-9]{16}$/.test(id) || /^(ref_[A-Za-z0-9_-]+|sms_[0-9._-]+)$/.test(id));
+  return typeof id === "string" && (/^csv_[a-f0-9]{16}$/.test(id) || /^(ref_[A-Za-z0-9_-]+|sms_[0-9._-]+|tx_[A-Za-z0-9_.-]+)$/.test(id));
 }
 
 function readPrivateTransactionSnapshot(snapshot) {
@@ -127,14 +129,35 @@ export async function loadPrivateTransactions(userId) {
   let snapshot;
   try {
     snapshot = await getDocs(collection(db, "users", userId, "transactions"));
+    const cloudResult = readPrivateTransactionSnapshot(snapshot);
+    if (cloudResult.transactions.length > 0) {
+      return cloudResult;
+    }
+    try {
+      const { loadLocalTransactions } = await import("./csvService");
+      const local = await loadLocalTransactions(userId);
+      if (Array.isArray(local) && local.length > 0) {
+        return { transactions: local, ignoredCount: cloudResult.ignoredCount };
+      }
+    } catch {
+      // Ignored
+    }
+    return cloudResult;
   } catch (error) {
+    try {
+      const { loadLocalTransactions } = await import("./csvService");
+      const local = await loadLocalTransactions(userId);
+      if (Array.isArray(local) && local.length > 0) {
+        return { transactions: local, ignoredCount: 0 };
+      }
+    } catch {
+      // Ignored
+    }
     throw new TransactionLoadError(
       privateCloudReadMessage("your private transactions", error),
       error,
     );
   }
-
-  return readPrivateTransactionSnapshot(snapshot);
 }
 
 /**
@@ -172,4 +195,24 @@ export async function loadPrivateStatements(userId) {
 export async function loadPrivateStatement(userId, statementId) {
   const statementService = await import("./statementService");
   return statementService.loadPrivateStatement(userId, statementId);
+}
+
+export async function deletePrivateTransaction(userId, transactionId) {
+  assertUserId(userId);
+  if (!transactionId) return false;
+  try {
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "users", userId, "transactions", transactionId));
+    try {
+      await deleteDoc(doc(db, "users", userId, "sms_transactions", transactionId));
+    } catch {
+      // Ignored if not present in sms_transactions
+    }
+    return true;
+  } catch (error) {
+    throw new TransactionLoadError(
+      privateCloudReadMessage("this transaction", error),
+      error,
+    );
+  }
 }

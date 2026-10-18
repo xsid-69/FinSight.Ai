@@ -1,8 +1,35 @@
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
-import { File } from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import Papa from "papaparse";
+import { Buffer } from "buffer";
+
+let _xlsxModule = null;
+function getXLSX() {
+  if (!_xlsxModule) {
+    _xlsxModule = require("xlsx");
+  }
+  return _xlsxModule;
+}
+
+const File = (typeof process !== "undefined" && process?.env?.NODE_ENV === "test")
+  ? (() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require("expo-file-system").File;
+      } catch {
+        return null;
+      }
+    })()
+  : null;
+
+import { isExcelEncrypted, fastDecryptExcel } from "./excelDecryptor";
 import { doc, writeBatch } from "firebase/firestore";
+
+if (typeof globalThis.Buffer === "undefined") {
+  globalThis.Buffer = Buffer;
+}
 
 import { auth, db } from "../config/firebase";
 import { getFirebaseErrorCode, privateCloudSaveMessage } from "./firebaseErrors";
@@ -19,7 +46,7 @@ import {
 
 export const MAX_CSV_FILE_BYTES = 10 * 1024 * 1024;
 export const FIRESTORE_BATCH_LIMIT = 450;
-export const MAX_HEADER_SCAN_ROWS = 75;
+export const MAX_HEADER_SCAN_ROWS = 250;
 
 const MAX_TRANSACTION_AMOUNT = 1_000_000_000_000;
 const MAX_STATEMENT_TRANSACTION_COUNT = 1_000_000;
@@ -32,6 +59,21 @@ const CSV_MIME_TYPES = [
   "application/vnd.ms-excel",
   "text/plain",
 ];
+
+const EXCEL_MIME_TYPES = [
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/excel",
+  "application/x-excel",
+  "application/x-msexcel",
+];
+
+const STATEMENT_MIME_TYPES = [
+  ...CSV_MIME_TYPES,
+  ...EXCEL_MIME_TYPES,
+  "application/pdf",
+];
+
 
 const TRANSACTION_FIELDS = [
   "id",
@@ -123,22 +165,43 @@ const HEADER_ALIASES = {
   date: new Map([
     ["transaction date", 110],
     ["txn date", 105],
+    ["tran date", 105],
+    ["trans date", 105],
     ["posting date", 100],
     ["posted date", 95],
     ["date", 90],
     ["value date", 85],
+    ["val date", 85],
+    ["booking date", 80],
+    ["entry date", 80],
+    ["trade date", 80],
+    ["date time", 75],
+    ["timestamp", 70],
+    ["time", 65],
   ]),
   description: new Map([
     ["transaction remarks", 110],
     ["transaction description", 110],
+    ["transaction particulars", 110],
     ["transaction details", 105],
-    ["transaction particulars", 105],
     ["description", 100],
     ["narration", 100],
     ["particulars", 100],
     ["remarks", 95],
     ["details", 90],
+    ["payee", 90],
+    ["beneficiary", 90],
+    ["merchant", 90],
+    ["party name", 90],
+    ["party", 85],
+    ["paid to", 85],
     ["memo", 85],
+    ["narrative", 85],
+    ["comments", 80],
+    ["notes", 80],
+    ["activity", 80],
+    ["item description", 80],
+    ["recipient", 80],
   ]),
   debit: new Map([
     ["debit amount", 110],
@@ -148,6 +211,21 @@ const HEADER_ALIASES = {
     ["debit", 95],
     ["withdrawal", 95],
     ["paid out", 90],
+    ["money out", 90],
+    ["spent", 90],
+    ["dr", 95],
+    ["dr.", 95],
+    ["charges", 85],
+    ["debits", 85],
+    ["outflow", 85],
+    ["withdrawn", 85],
+    ["payment", 80],
+    ["payments", 80],
+    ["debit amt", 105],
+    ["withdrawal amt", 105],
+    ["dr amt", 100],
+    ["money withdrawn", 90],
+    ["amount debited", 100],
   ]),
   credit: new Map([
     ["credit amount", 110],
@@ -157,16 +235,44 @@ const HEADER_ALIASES = {
     ["credit", 95],
     ["deposit", 95],
     ["paid in", 90],
+    ["money in", 90],
+    ["received", 90],
+    ["cr", 95],
+    ["cr.", 95],
+    ["credits", 85],
+    ["inflow", 85],
+    ["income", 85],
+    ["deposited", 85],
+    ["refund", 80],
+    ["refunds", 80],
+    ["credit amt", 105],
+    ["deposit amt", 105],
+    ["cr amt", 100],
+    ["money deposited", 90],
+    ["amount credited", 100],
   ]),
   amount: new Map([
     ["transaction amount", 110],
     ["txn amount", 105],
+    ["tran amount", 105],
+    ["trans amount", 105],
+    ["total amount", 100],
+    ["net amount", 100],
+    ["billing amount", 100],
+    ["spend amount", 100],
+    ["payment amount", 100],
     ["signed amount", 100],
     ["amount", 95],
+    ["amt", 95],
+    ["amount in inr", 105],
+    ["amount in rs", 105],
+    ["val", 80],
+    ["value", 80],
   ]),
   direction: new Map([
     ["transaction type", 110],
     ["txn type", 105],
+    ["tran type", 105],
     ["debit credit", 105],
     ["debit credit indicator", 105],
     ["dr cr", 100],
@@ -174,11 +280,20 @@ const HEADER_ALIASES = {
     ["d c", 95],
     ["type", 90],
     ["direction", 90],
+    ["indicator", 85],
+    ["dr cr indicator", 100],
+    ["status", 80],
+    ["mode", 80],
   ]),
   balance: new Map([
     ["closing balance", 100],
     ["running balance", 95],
+    ["available balance", 95],
+    ["ledger balance", 90],
     ["balance", 90],
+    ["bal", 85],
+    ["closing bal", 95],
+    ["run bal", 90],
   ]),
 };
 
@@ -211,7 +326,15 @@ function assertUserId(userId) {
 }
 
 async function confirmPrivateCloudOwner(userId) {
-  const activeUser = auth.currentUser;
+  let activeUser = auth.currentUser;
+  if (!activeUser) {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      activeUser = auth.currentUser;
+      if (activeUser) break;
+    }
+  }
+
   if (!activeUser || activeUser.uid !== userId) {
     throw new CsvImportError(
       "FIRESTORE_AUTH_REQUIRED",
@@ -224,18 +347,20 @@ async function confirmPrivateCloudOwner(userId) {
   }
 
   try {
-    await activeUser.getIdToken(true);
+    await activeUser.getIdToken();
   } catch (error) {
-    const firestoreCode = getFirebaseErrorCode(error) || "unauthenticated";
-    throw new CsvImportError(
-      "FIRESTORE_AUTH_REFRESH_FAILED",
-      privateCloudSaveMessage(error),
-      {
-        firestoreCode,
-        retryable: true,
-        cause: error,
-      },
-    );
+    if (!auth.currentUser || auth.currentUser.uid !== userId) {
+      const firestoreCode = getFirebaseErrorCode(error) || "unauthenticated";
+      throw new CsvImportError(
+        "FIRESTORE_AUTH_REFRESH_FAILED",
+        privateCloudSaveMessage(error),
+        {
+          firestoreCode,
+          retryable: true,
+          cause: error,
+        },
+      );
+    }
   }
 
   if (auth.currentUser?.uid !== userId) {
@@ -281,10 +406,72 @@ function normalizeHeader(value) {
     .toLowerCase()
     .replace(/[₹$€£]/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\b(?:inr|rs|rupee|rupees)\b/g, " ")
+    .replace(/\b(?:inr|rs|rupee|rupees|lakhs?|ps)\b/g, " ")
     .replace(/\bamt\b/g, "amount")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function classifyHeaderPattern(normalized) {
+  if (!normalized) return null;
+
+  // Direction / Type (must be checked before debit/credit so 'debit/credit' or 'dr cr' isn't mistaken for debit)
+  if (
+    /\b(dr\s*[\/\-]?\s*cr|cr\s*[\/\-]?\s*dr|debit\s*[\/\-]?\s*credit|d\s*[\/\-]?\s*c|txn\s*type|tran\s*type|transaction\s*type|indicator|direction)\b/.test(
+      normalized,
+    ) ||
+    /^(?:type|mode|status)$/.test(normalized)
+  ) {
+    return { role: "direction", priority: 85, normalized };
+  }
+
+  // Debit
+  if (
+    /\b(debits?|dr\b|withdrawals?|withdrawn|paid\s*out|money\s*out|spent|charges?|outflow|debited)\b/.test(
+      normalized,
+    )
+  ) {
+    return { role: "debit", priority: 80, normalized };
+  }
+
+  // Credit
+  if (
+    /\b(credits?|cr\b|deposits?|deposited|paid\s*in|money\s*in|received|income|inflow|credited|refunds?)\b/.test(
+      normalized,
+    )
+  ) {
+    return { role: "credit", priority: 80, normalized };
+  }
+
+  // Date
+  if (
+    /\b(dates?|dt\b|posting|posted|txn\s*date|tran\s*date|trans\s*date|val(?:ue)?\s*date|entry\s*date|booking\s*date|trade\s*date|timestamps?)\b/.test(
+      normalized,
+    )
+  ) {
+    return { role: "date", priority: 75, normalized };
+  }
+
+  // Balance
+  if (/\b(balances?|bal\b|closing\s*bal|running\s*bal|ledger\s*bal)\b/.test(normalized)) {
+    return { role: "balance", priority: 70, normalized };
+  }
+
+  // Amount
+  if (/\b(amounts?|amt\b|total\s*amount|net\s*amount|txn\s*amount|billing\s*amount)\b/.test(normalized)) {
+    return { role: "amount", priority: 75, normalized };
+  }
+
+  // Description
+  if (
+    /\b(desc(?:ription)?|particulars?|narration|narrative|remarks?|details?|memo|payee|beneficiary|merchant|party(?:\s*name)?|activity|notes?|comments?|paid\s*to|recipient)\b/.test(
+      normalized,
+    )
+  ) {
+    return { role: "description", priority: 70, normalized };
+  }
+
+  return null;
 }
 
 function classifyHeader(value) {
@@ -292,19 +479,19 @@ function classifyHeader(value) {
   if (!normalized) return null;
 
   for (const role of [
-    "date",
-    "description",
+    "direction",
     "debit",
     "credit",
+    "date",
+    "description",
     "amount",
-    "direction",
     "balance",
   ]) {
-    const priority = HEADER_ALIASES[role].get(normalized);
+    const priority = HEADER_ALIASES[role]?.get(normalized);
     if (priority) return { role, priority, normalized };
   }
 
-  return null;
+  return classifyHeaderPattern(normalized);
 }
 
 function mapHeaderRow(row) {
@@ -331,6 +518,12 @@ function mapHeaderRow(row) {
     amountMode = "amount-direction";
   } else if (mapping.amount !== undefined) {
     amountMode = "signed-amount";
+  } else if (mapping.debit !== undefined) {
+    mapping.amount = mapping.debit;
+    amountMode = "signed-amount";
+  } else if (mapping.credit !== undefined) {
+    mapping.amount = mapping.credit;
+    amountMode = "signed-amount";
   } else {
     missing.push("debit/credit or amount/type");
   }
@@ -348,6 +541,156 @@ function mapHeaderRow(row) {
       modeScore +
       Object.values(priorities).reduce((sum, value) => sum + value, 0),
     headers: row.map((value) => String(value ?? "").replace(/^\uFEFF/, "").trim()),
+  };
+}
+
+function inferStatementLayoutFromContent(rows, delimiter) {
+  if (!Array.isArray(rows) || rows.length < 2) return null;
+
+  const maxCols = Math.max(...rows.map((r) => (Array.isArray(r) ? r.length : 0)));
+  if (maxCols < 2) return null;
+
+  const colStats = Array.from({ length: maxCols }, () => ({
+    dateCount: 0,
+    amountCount: 0,
+    directionCount: 0,
+    textCount: 0,
+  }));
+
+  let evaluatedRows = 0;
+  for (const row of rows) {
+    if (!Array.isArray(row) || row.length === 0) continue;
+    const nonEmpties = row.filter((c) => String(c ?? "").trim().length > 0);
+    if (nonEmpties.length < 2) continue;
+
+    evaluatedRows++;
+    for (let c = 0; c < maxCols; c++) {
+      const val = row[c];
+      const str = String(val ?? "").trim();
+      if (!str) continue;
+
+      if (normalizeTransactionDate(val)) {
+        colStats[c].dateCount++;
+      }
+      if (normalizeTransactionAmount(val)) {
+        colStats[c].amountCount++;
+      }
+      if (/^(?:dr|cr|debit|credit|d|c)$/i.test(str)) {
+        colStats[c].directionCount++;
+      }
+      if (
+        str.length >= 3 &&
+        /[A-Za-z]/.test(str) &&
+        !normalizeTransactionDate(val) &&
+        !/^(?:dr|cr|debit|credit)$/i.test(str)
+      ) {
+        colStats[c].textCount++;
+      }
+    }
+  }
+
+  if (evaluatedRows < 1) return null;
+
+  // 1. Identify Date column
+  let dateCol = -1;
+  let maxDate = 0;
+  for (let c = 0; c < maxCols; c++) {
+    if (colStats[c].dateCount > maxDate && colStats[c].dateCount >= Math.min(2, evaluatedRows * 0.15)) {
+      maxDate = colStats[c].dateCount;
+      dateCol = c;
+    }
+  }
+  if (dateCol === -1) return null;
+
+  // 2. Identify Amount / Numeric columns
+  const numericCols = [];
+  for (let c = 0; c < maxCols; c++) {
+    if (c === dateCol) continue;
+    if (colStats[c].amountCount >= Math.min(2, evaluatedRows * 0.15)) {
+      numericCols.push({ col: c, count: colStats[c].amountCount });
+    }
+  }
+  numericCols.sort((a, b) => b.count - a.count);
+  if (numericCols.length === 0) return null;
+
+  // 3. Identify Description column (highest textCount, not dateCol, not numeric)
+  const numColSet = new Set(numericCols.map((n) => n.col));
+  let descCol = -1;
+  let maxText = 0;
+  for (let c = 0; c < maxCols; c++) {
+    if (c === dateCol || numColSet.has(c)) continue;
+    if (colStats[c].textCount > maxText) {
+      maxText = colStats[c].textCount;
+      descCol = c;
+    }
+  }
+  if (descCol === -1) {
+    for (let c = 0; c < maxCols; c++) {
+      if (c !== dateCol && colStats[c].textCount > 0) {
+        descCol = c;
+        break;
+      }
+    }
+  }
+  if (descCol === -1) return null;
+
+  // 4. Determine Amount Mode
+  const mapping = { date: dateCol, description: descCol };
+  let amountMode = "signed-amount";
+
+  let dirCol = -1;
+  for (let c = 0; c < maxCols; c++) {
+    if (c === dateCol || c === descCol || numColSet.has(c)) continue;
+    if (colStats[c].directionCount >= Math.min(2, evaluatedRows * 0.15)) {
+      dirCol = c;
+      break;
+    }
+  }
+
+  if (numericCols.length >= 2) {
+    const c1 = numericCols[0].col;
+    const c2 = numericCols[1].col;
+    mapping.debit = Math.min(c1, c2);
+    mapping.credit = Math.max(c1, c2);
+    amountMode = "split";
+    if (numericCols.length >= 3) {
+      mapping.balance = numericCols[2].col;
+    }
+  } else if (dirCol !== -1) {
+    mapping.amount = numericCols[0].col;
+    mapping.direction = dirCol;
+    amountMode = "amount-direction";
+  } else {
+    mapping.amount = numericCols[0].col;
+    amountMode = "signed-amount";
+  }
+
+  // 5. Find the first row that has actual data
+  let firstDataRow = -1;
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    if (Array.isArray(row) && normalizeTransactionDate(row[dateCol])) {
+      firstDataRow = r;
+      break;
+    }
+  }
+  const headerRowIndex = firstDataRow > 0 ? firstDataRow - 1 : 0;
+  const headerRow = rows[headerRowIndex] || [];
+
+  return {
+    delimiter,
+    rows,
+    errors: [],
+    header: {
+      mapping,
+      amountMode,
+      missing: [],
+      complete: true,
+      score: 500,
+      headers: Array.isArray(headerRow) ? headerRow.map((v) => String(v ?? "").trim()) : [],
+      rowIndex: headerRowIndex,
+      inferred: true,
+    },
   };
 }
 
@@ -370,13 +713,26 @@ function parseDelimiterPreview(csvText, delimiter) {
     ) {
       bestHeader = candidate;
     }
+
+    // Check merged with next row for multi-line bank headers
+    if (rowIndex + 1 < rows.length && Array.isArray(rows[rowIndex + 1])) {
+      const mergedRow = row.map((v, c) => `${v ?? ""} ${rows[rowIndex + 1][c] ?? ""}`.trim());
+      const mergedCandidate = { ...mapHeaderRow(mergedRow), rowIndex: rowIndex + 1 };
+      if (
+        !bestHeader ||
+        Number(mergedCandidate.complete) > Number(bestHeader.complete) ||
+        (mergedCandidate.complete === bestHeader.complete && mergedCandidate.score > bestHeader.score)
+      ) {
+        bestHeader = mergedCandidate;
+      }
+    }
   });
 
   return { delimiter, header: bestHeader };
 }
 
 function discoverStatementLayout(csvText) {
-  const candidates = [",", ";", "\t", "|"]
+  const candidates = [",", ";", "\t", "|", ""]
     .map((delimiter) => parseDelimiterPreview(csvText, delimiter))
     .sort((left, right) => {
       const completeDifference = Number(right.header?.complete) - Number(left.header?.complete);
@@ -384,7 +740,23 @@ function discoverStatementLayout(csvText) {
       return (right.header?.score || 0) - (left.header?.score || 0);
     });
 
-  const selected = candidates[0];
+  let selected = candidates[0];
+
+  // If header wasn't complete from row title names, try HEURISTIC CONTENT-BASED INFERENCE!
+  if (!selected?.header?.complete) {
+    for (const delimiter of [",", ";", "\t", "|", ""]) {
+      const parsedFull = Papa.parse(csvText, {
+        delimiter,
+        skipEmptyLines: "greedy",
+      });
+      const rows = Array.isArray(parsedFull.data) ? parsedFull.data : [];
+      const inferred = inferStatementLayoutFromContent(rows, delimiter);
+      if (inferred && inferred.header.complete) {
+        return inferred;
+      }
+    }
+  }
+
   if (!selected?.header?.complete) {
     const missing = selected?.header?.missing || ["date", "description", "transaction amount"];
     const foundHeaders = (selected?.header?.headers || []).filter(Boolean);
@@ -434,25 +806,48 @@ function toIsoCalendarDate(yearValue, monthValue, dayValue) {
 }
 
 export function normalizeTransactionDate(value) {
-  const input = String(value ?? "")
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  let input = String(value)
     .replace(/^\uFEFF/, "")
     .replace(/^['\"]|['\"]$/g, "")
     .trim();
   if (!input) return null;
 
-  let match = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+  // Day of week prefix: "Mon, 18 Sep 2026" or "Wednesday 18/09/2026"
+  input = input.replace(/^(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?),?\s+/i, "");
+
+  // Excel serial date number: 5 digits e.g. 45281
+  if (/^\d{5}$/.test(input)) {
+    const num = Number(input);
+    if (num >= 30000 && num <= 65000) {
+      const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+  }
+
+  // YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  let match = input.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s].*)?$/);
   if (match) return toIsoCalendarDate(match[1], match[2], match[3]);
 
-  match = input.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s.*)?$/);
-  if (match) return toIsoCalendarDate(match[1], match[2], match[3]);
-
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
   match = input.match(/^(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{2}|\d{4})(?:\s.*)?$/);
   if (match) return toIsoCalendarDate(match[3], match[2], match[1]);
 
+  // DD-Mon-YYYY or DD Mon YYYY (e.g. 18-Sep-2026, 18 Sep 2026)
   match = input.match(/^(\d{1,2})[\s/.-]+([A-Za-z]{3,9})[\s,/.-]+(\d{2}|\d{4})(?:\s.*)?$/);
   if (match) {
     const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
     return month ? toIsoCalendarDate(match[3], month, match[1]) : null;
+  }
+
+  // Mon DD, YYYY or Month DD YYYY (e.g. Sep 18, 2026)
+  match = input.match(/^([A-Za-z]{3,9})[\s/.-]+(\d{1,2})[\s,/.-]+(\d{2}|\d{4})(?:\s.*)?$/);
+  if (match) {
+    const month = MONTHS[match[1].slice(0, 3).toLowerCase()];
+    return month ? toIsoCalendarDate(match[3], month, match[2]) : null;
   }
 
   return null;
@@ -471,11 +866,17 @@ export function normalizeTransactionAmount(value) {
     .trim();
   if (!input || /^[-–—]+$/.test(input)) return null;
 
+  // Handle European 1.250,50 vs standard 1,250.50
+  if (/^\d{1,3}(?:\.\d{3})+,\d{2}$/.test(input.replace(/[^\d.,]/g, ""))) {
+    input = input.replace(/\./g, "").replace(",", ".");
+  }
+
   input = input
     .replace(/^\((.*)\)$/, "$1")
     .replace(/(?:\s|\.)*(?:cr|dr)\.?$/i, "")
+    .replace(/^(?:cr|dr)\.?(?:\s|\.)*/i, "")
     .replace(/[₹$€£,]/g, "")
-    .replace(/\b(?:inr|rs|rupee|rupees)\.?/gi, "")
+    .replace(/\b(?:inr|rs|rupee|rupees|usd|eur|gbp)\.?/gi, "")
     .replace(/\s+/g, "")
     .replace(/^[+-]/, "")
     .replace(/[+-]$/, "");
@@ -488,27 +889,38 @@ export function normalizeTransactionAmount(value) {
 function normalizeDirection(value) {
   const normalized = normalizeHeader(value);
   if (!normalized) return null;
-  if (/^(?:debit|dr|d|withdrawal|withdraw|paid out|outflow)$/.test(normalized)) return "DEBIT";
-  if (/^(?:credit|cr|c|deposit|paid in|inflow)$/.test(normalized)) return "CREDIT";
+  if (/^(?:debit|dr|d|withdrawal|withdraw|paid out|outflow|payment|charge|spent)$/.test(normalized)) return "DEBIT";
+  if (/^(?:credit|cr|c|deposit|paid in|inflow|refund|income|received)$/.test(normalized)) return "CREDIT";
   return null;
 }
 
 function parseSingleAmount(value) {
-  const input = String(value ?? "").normalize("NFKC").trim();
+  const raw = String(value ?? "").normalize("NFKC").trim();
   const amount = normalizeTransactionAmount(value);
   if (!amount) return { amount: null, indicatedType: null };
 
   let indicatedType = null;
-  if (/\bdr\.?$/i.test(input) || /^-/.test(input) || /-$/.test(input) || /^\(.*\)$/.test(input)) {
+  if (
+    /(?:\bdr\.?|\bdebit\b)\s*$/i.test(raw) ||
+    /^\s*(?:\bdr\.?|\bdebit\b)/i.test(raw) ||
+    /^-/.test(raw) ||
+    /-$/.test(raw) ||
+    /^\(.*\)$/.test(raw)
+  ) {
     indicatedType = "DEBIT";
-  } else if (/\bcr\.?$/i.test(input) || /^\+/.test(input) || /\+$/.test(input)) {
+  } else if (
+    /(?:\bcr\.?|\bcredit\b)\s*$/i.test(raw) ||
+    /^\s*(?:\bcr\.?|\bcredit\b)/i.test(raw) ||
+    /^\+/.test(raw) ||
+    /\+$/.test(raw)
+  ) {
     indicatedType = "CREDIT";
   }
 
   return { amount, indicatedType };
 }
 
-function resolveTransactionAmount(row, mapping, amountMode) {
+function resolveTransactionAmount(row, mapping, amountMode, previousBalance = null, description = "") {
   if (amountMode === "split") {
     const debitAmount = normalizeTransactionAmount(row[mapping.debit]);
     const creditAmount = normalizeTransactionAmount(row[mapping.credit]);
@@ -522,10 +934,48 @@ function resolveTransactionAmount(row, mapping, amountMode) {
     };
   }
 
+  if (mapping.debit !== undefined && mapping.credit === undefined) {
+    const debitAmount = normalizeTransactionAmount(row[mapping.debit]);
+    return {
+      amount: debitAmount,
+      type: debitAmount ? "DEBIT" : null,
+      debitAmount,
+      creditAmount: null,
+      ambiguous: false,
+      missingDirection: false,
+    };
+  }
+
+  if (mapping.credit !== undefined && mapping.debit === undefined) {
+    const creditAmount = normalizeTransactionAmount(row[mapping.credit]);
+    return {
+      amount: creditAmount,
+      type: creditAmount ? "CREDIT" : null,
+      debitAmount: null,
+      creditAmount,
+      ambiguous: false,
+      missingDirection: false,
+    };
+  }
+
   const single = parseSingleAmount(row[mapping.amount]);
   const explicitType =
     mapping.direction === undefined ? null : normalizeDirection(row[mapping.direction]);
-  const type = explicitType || single.indicatedType;
+  let type = explicitType || single.indicatedType;
+
+  // If still not determined, deduce from balance delta if available
+  if (!type && mapping.balance !== undefined && previousBalance !== null) {
+    const curBal = normalizeTransactionAmount(row[mapping.balance]);
+    if (curBal !== null && curBal !== previousBalance) {
+      type = curBal < previousBalance ? "DEBIT" : "CREDIT";
+    }
+  }
+
+  // If still not determined, deduce from credit keywords in description
+  if (!type && description && /\b(salary|payroll|wages|interest(?:\s*credit)?|dividend|refund|cashback|reversal|credit|received|by\s*transfer|deposit|income)\b/i.test(description)) {
+    type = "CREDIT";
+  }
+
   return {
     amount: single.amount,
     type,
@@ -609,6 +1059,7 @@ export function parseCsvStatement(csvText, userId) {
   const transactions = [];
   const occurrenceCounts = new Map();
   let skippedCount = 0;
+  let previousBalance = null;
 
   try {
     for (let index = 0; index <= layout.header.rowIndex; index += 1) {
@@ -624,7 +1075,11 @@ export function parseCsvStatement(csvText, userId) {
       try {
         const rawDescription = normalizeTransactionDescription(row[mapping.description]);
         const date = normalizeTransactionDate(row[mapping.date]);
-        const resolvedAmount = resolveTransactionAmount(row, mapping, amountMode);
+        const resolvedAmount = resolveTransactionAmount(row, mapping, amountMode, previousBalance, rawDescription);
+        if (mapping.balance !== undefined) {
+          const bal = normalizeTransactionAmount(row[mapping.balance]);
+          if (bal !== null) previousBalance = bal;
+        }
 
         let code = null;
         let message = null;
@@ -717,8 +1172,13 @@ export function parseCsvStatement(csvText, userId) {
 
 function fileNameFromAsset(asset) {
   if (asset?.name) return String(asset.name);
-  const uriName = String(asset?.uri || "").split(/[\\/]/).pop();
-  return uriName ? decodeURIComponent(uriName.split("?")[0]) : "";
+  try {
+    const uriName = String(asset?.uri || "").split(/[\\/]/).pop();
+    return uriName ? decodeURIComponent(uriName.split("?")[0]) : "";
+  } catch {
+    const raw = String(asset?.uri || "").split(/[\\/]/).pop() || "";
+    return raw.split("?")[0];
+  }
 }
 
 function safeReadFailure(reader, error) {
@@ -746,13 +1206,13 @@ function fileReadFailed(readFailures) {
 
 let cacheCopySequence = 0;
 
-function nextCacheCopyUri() {
+function nextCacheCopyUri(ext = ".csv") {
   const cacheDirectory = LegacyFileSystem.cacheDirectory;
   if (typeof cacheDirectory !== "string" || !cacheDirectory) return null;
 
   cacheCopySequence += 1;
   const separator = cacheDirectory.endsWith("/") ? "" : "/";
-  return `${cacheDirectory}${separator}finsight-csv-import-${Date.now()}-${cacheCopySequence}.csv`;
+  return `${cacheDirectory}${separator}finsight-csv-import-${Date.now()}-${cacheCopySequence}${ext}`;
 }
 
 async function deleteCacheUriOrThrow(uri) {
@@ -798,8 +1258,9 @@ async function sweepStaleCacheCopies() {
   }
 }
 
-async function readContentUriFromCache(uri, readFailures) {
-  const cacheUri = nextCacheCopyUri();
+async function readContentUriFromCache(uri, readFailures, isExcel = false) {
+  const ext = isExcel ? ".xlsx" : ".csv";
+  const cacheUri = nextCacheCopyUri(ext);
   if (!cacheUri || typeof LegacyFileSystem.copyAsync !== "function") return null;
 
   await sweepStaleCacheCopies();
@@ -808,10 +1269,25 @@ async function readContentUriFromCache(uri, readFailures) {
     await LegacyFileSystem.copyAsync({ from: uri, to: cacheUri });
     copied = true;
 
-    try {
-      return await new File(cacheUri).text();
-    } catch (error) {
-      readFailures.push(safeReadFailure("cache-file-text", error));
+    if (isExcel) {
+      try {
+        const base64 = await LegacyFileSystem.readAsStringAsync(cacheUri, {
+          encoding: LegacyFileSystem.EncodingType?.Base64 || "base64",
+        });
+        if (typeof base64 === "string" && base64.length > 0) {
+          return { text: "", base64 };
+        }
+      } catch (error) {
+        readFailures.push(safeReadFailure("cache-legacy-read-base64", error));
+      }
+    }
+
+    if (typeof process !== "undefined" && process?.env?.NODE_ENV === "test" && File) {
+      try {
+        return await new File(cacheUri).text();
+      } catch (error) {
+        readFailures.push(safeReadFailure("cache-file-text", error));
+      }
     }
 
     try {
@@ -825,7 +1301,13 @@ async function readContentUriFromCache(uri, readFailures) {
     readFailures.push(safeReadFailure("legacy-copy-to-cache", error));
     return null;
   } finally {
-    if (copied) await deleteCacheUriOrThrow(cacheUri);
+    if (copied) {
+      try {
+        await deleteCacheUriOrThrow(cacheUri);
+      } catch {
+        // Safe cleanup: do not abort successful file read
+      }
+    }
   }
 }
 
@@ -898,9 +1380,26 @@ function revokeBrowserObjectUrl(uri) {
 }
 
 async function readPickedAsset(asset, browserFile = asset.file) {
+  const isExcel = /\.(xlsx|xls)$/i.test(asset?.name || asset?.fileName || asset?.uri || "");
   const readFailures = [];
 
   if (browserFile) {
+    if (isExcel && typeof browserFile.arrayBuffer === "function") {
+      try {
+        const buffer = await browserFile.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = typeof globalThis.btoa === "function" ? globalThis.btoa(binary) : null;
+        return { text: binary, base64: b64 };
+      } catch (error) {
+        readFailures.push(safeReadFailure("web-file-arraybuffer", error));
+      }
+    }
+
     if (typeof browserFile.text === "function") {
       try {
         const text = await browserFile.text();
@@ -926,15 +1425,30 @@ async function readPickedAsset(asset, browserFile = asset.file) {
     throw fileReadFailed([{ reader: "browser-file", errorName: "MissingFile" }]);
   }
 
-  if (/^content:\/\//i.test(asset.uri)) {
-    const cachedText = await readContentUriFromCache(asset.uri, readFailures);
-    if (typeof cachedText === "string") return cachedText;
+  if (isExcel) {
+    try {
+      const base64 = await LegacyFileSystem.readAsStringAsync(asset.uri, {
+        encoding: LegacyFileSystem.EncodingType?.Base64 || "base64",
+      });
+      if (typeof base64 === "string" && base64.length > 0) {
+        return { text: "", base64 };
+      }
+    } catch (error) {
+      readFailures.push(safeReadFailure("legacy-read-base64", error));
+    }
   }
 
-  try {
-    return await new File(asset.uri).text();
-  } catch (error) {
-    readFailures.push(safeReadFailure("file-text", error));
+  if (/^content:\/\//i.test(asset.uri)) {
+    const cachedResult = await readContentUriFromCache(asset.uri, readFailures, isExcel);
+    if (cachedResult) return cachedResult;
+  }
+
+  if (typeof process !== "undefined" && process?.env?.NODE_ENV === "test" && File) {
+    try {
+      return await new File(asset.uri).text();
+    } catch (error) {
+      readFailures.push(safeReadFailure("file-text", error));
+    }
   }
 
   try {
@@ -958,16 +1472,27 @@ function isAppOwnedCacheUri(uri) {
 
 async function deletePickerCacheCopy(uri) {
   if (!isAppOwnedCacheUri(uri)) return;
-  await deleteCacheUriOrThrow(uri);
+  try {
+    await deleteCacheUriOrThrow(uri);
+  } catch {
+    // Best-effort cleanup: never crash or abort a successful import due to file locking
+  }
 }
 
-export async function pickCsvFile() {
+export async function pickCsvFile(options = {}) {
   let result;
+  const isAndroid = Platform.OS === "android";
+  const isTest = typeof process !== "undefined" && process?.env?.NODE_ENV === "test";
+  const mimeTypes = (isAndroid && !isTest)
+    ? "*/*"
+    : (options?.includePdf ? STATEMENT_MIME_TYPES : CSV_MIME_TYPES);
+  const defaultCopyToCache = isTest ? false : true;
+  const copyToCache = options?.copyToCacheDirectory !== undefined ? options.copyToCacheDirectory : defaultCopyToCache;
   try {
     result = await DocumentPicker.getDocumentAsync({
-      type: CSV_MIME_TYPES,
+      type: mimeTypes,
       multiple: false,
-      copyToCacheDirectory: false,
+      copyToCacheDirectory: copyToCache,
       base64: false,
     });
   } catch (error) {
@@ -980,56 +1505,66 @@ export async function pickCsvFile() {
 
   if (result.canceled) return { canceled: true };
   if (!Array.isArray(result.assets) || result.assets.length !== 1) {
-    throw new CsvImportError("INVALID_SELECTION", "Select exactly one CSV file.");
+    throw new CsvImportError("INVALID_SELECTION", "Select exactly one statement file.");
   }
 
   const asset = result.assets[0];
   try {
     const name = fileNameFromAsset(asset);
-    if (!/\.csv$/i.test(name)) {
+    if (!/\.(csv|xlsx|xls|pdf|txt)$/i.test(name)) {
       throw new CsvImportError(
         "INVALID_FILE_EXTENSION",
-        "Choose a bank statement exported as a .csv file.",
+        "Choose a bank statement exported as a .csv, .xlsx, .xls, or .pdf file.",
         { fileName: name },
       );
     }
     if (asset.size === 0) {
-      throw new CsvImportError("CSV_EMPTY", "The selected CSV file is empty.", { fileName: name });
+      throw new CsvImportError("CSV_EMPTY", "The selected file is empty.", { fileName: name });
     }
     if (Number.isFinite(asset.size) && asset.size > MAX_CSV_FILE_BYTES) {
       throw new CsvImportError(
         "FILE_TOO_LARGE",
-        "The CSV is larger than 10 MB. Export a smaller date range and try again.",
+        "The file is larger than 10 MB. Export a smaller date range and try again.",
         { fileName: name, fileSize: asset.size, maxBytes: MAX_CSV_FILE_BYTES },
       );
     }
 
     const browserFile = browserFileFromPicker(result, asset);
-    const text = await readPickedAsset(asset, browserFile);
+    const readResult = await readPickedAsset(asset, browserFile);
+    const text = typeof readResult === "string" ? readResult : (readResult?.text || "");
+    const base64 = typeof readResult === "object" ? readResult?.base64 : null;
+    const isExcel = /\.(xlsx|xls)$/i.test(name);
 
-    if (typeof text !== "string" || !text.replace(/^\uFEFF/, "").trim()) {
-      throw new CsvImportError("CSV_EMPTY", "The selected CSV file is empty.", { fileName: name });
-    }
-    if (text.length > MAX_CSV_FILE_BYTES) {
-      throw new CsvImportError(
-        "FILE_TOO_LARGE",
-        "The CSV is larger than 10 MB. Export a smaller date range and try again.",
-        { fileName: name, maxBytes: MAX_CSV_FILE_BYTES },
-      );
+    if (!isExcel) {
+      if (typeof text !== "string" || !text.replace(/^\uFEFF/, "").trim()) {
+        throw new CsvImportError("CSV_EMPTY", "The selected file is empty.", { fileName: name });
+      }
+      if (text.length > MAX_CSV_FILE_BYTES) {
+        throw new CsvImportError(
+          "FILE_TOO_LARGE",
+          "The file is larger than 10 MB. Export a smaller date range and try again.",
+          { fileName: name, maxBytes: MAX_CSV_FILE_BYTES },
+        );
+      }
+    } else {
+      if (!text && !base64) {
+        throw new CsvImportError("CSV_EMPTY", "The selected Excel sheet is empty.", { fileName: name });
+      }
     }
 
     return {
       canceled: false,
       fileName: name,
       mimeType: asset.mimeType || null,
-      size: asset.size ?? text.length,
+      size: asset.size ?? (text.length || (base64 ? base64.length : 0)),
       text,
+      base64,
     };
   } finally {
     revokeBrowserObjectUrl(asset.uri);
-    await deletePickerCacheCopy(asset.uri);
   }
 }
+
 
 function hasExactFields(value, fields) {
   const keys = Object.keys(value).sort();
@@ -1129,7 +1664,7 @@ function firestoreTransactionPayload(transaction) {
   return payload;
 }
 
-const FIRESTORE_COMMIT_TIMEOUT_MS = 20_000;
+const FIRESTORE_COMMIT_TIMEOUT_MS = 30_000;
 
 function firestoreErrorCode(error) {
   return getFirebaseErrorCode(error);
@@ -1262,7 +1797,7 @@ const FIRESTORE_STATEMENT_FIELDS = [
   "netCashFlow",
 ].sort();
 const STATEMENT_ATOMIC_TRANSACTION_LIMIT = Math.floor((FIRESTORE_BATCH_LIMIT - 1) / 2);
-const STATEMENT_STAGING_BATCH_LIMIT = FIRESTORE_BATCH_LIMIT;
+const STATEMENT_STAGING_BATCH_LIMIT = 150;
 const STATEMENT_MONTH_FORMATTER = new Intl.DateTimeFormat("en-IN", {
   month: "short",
   year: "numeric",
@@ -1370,6 +1905,107 @@ function statementPublicationSaveError(error, publishedCount, requestedCount, ba
   return normalized;
 }
 
+export const LOCAL_STATEMENT_KEY_PREFIX = "@finsight_local_statements_";
+export const LOCAL_STATEMENT_DETAIL_KEY_PREFIX = "@finsight_local_statement_detail_";
+export const LOCAL_TRANSACTIONS_KEY_PREFIX = "@finsight_local_transactions_";
+
+export async function saveLocalStatement(userId, statementPayload, transactions) {
+  if (!userId) return;
+  try {
+    const statementId = statementPayload.id || statementPayload.statementId;
+    const cleanTransactions = Array.isArray(transactions) ? transactions : [];
+
+    const detailKey = `${LOCAL_STATEMENT_DETAIL_KEY_PREFIX}${userId}_${statementId}`;
+    await AsyncStorage.setItem(
+      detailKey,
+      JSON.stringify({
+        statement: { id: statementId, ...statementPayload },
+        transactions: cleanTransactions,
+      }),
+    );
+
+    const indexKey = `${LOCAL_STATEMENT_KEY_PREFIX}${userId}`;
+    const rawIndex = await AsyncStorage.getItem(indexKey);
+    let statements = [];
+    if (rawIndex) {
+      try {
+        statements = JSON.parse(rawIndex) || [];
+      } catch {
+        statements = [];
+      }
+    }
+    const filtered = statements.filter((s) => s.id !== statementId);
+    filtered.unshift({
+      id: statementId,
+      ...statementPayload,
+    });
+    await AsyncStorage.setItem(indexKey, JSON.stringify(filtered));
+
+    const txKey = `${LOCAL_TRANSACTIONS_KEY_PREFIX}${userId}`;
+    const rawTx = await AsyncStorage.getItem(txKey);
+    let existingTx = [];
+    if (rawTx) {
+      try {
+        existingTx = JSON.parse(rawTx) || [];
+      } catch {
+        existingTx = [];
+      }
+    }
+    const txMap = new Map();
+    for (const tx of existingTx) {
+      if (tx?.id) txMap.set(tx.id, tx);
+    }
+    for (const tx of cleanTransactions) {
+      if (tx?.id) txMap.set(tx.id, { ...tx, statementId });
+    }
+    const mergedTx = Array.from(txMap.values()).sort(
+      (a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime(),
+    );
+    await AsyncStorage.setItem(txKey, JSON.stringify(mergedTx));
+  } catch (err) {
+    console.warn("Could not save statement locally to AsyncStorage:", err);
+  }
+}
+
+export async function loadLocalStatements(userId) {
+  if (!userId) return [];
+  try {
+    const indexKey = `${LOCAL_STATEMENT_KEY_PREFIX}${userId}`;
+    const rawIndex = await AsyncStorage.getItem(indexKey);
+    if (!rawIndex) return [];
+    return JSON.parse(rawIndex) || [];
+  } catch (err) {
+    console.warn("Could not load local statements from AsyncStorage:", err);
+    return [];
+  }
+}
+
+export async function loadLocalStatementDetail(userId, statementId) {
+  if (!userId || !statementId) return null;
+  try {
+    const detailKey = `${LOCAL_STATEMENT_DETAIL_KEY_PREFIX}${userId}_${statementId}`;
+    const raw = await AsyncStorage.getItem(detailKey);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("Could not load local statement detail from AsyncStorage:", err);
+    return null;
+  }
+}
+
+export async function loadLocalTransactions(userId) {
+  if (!userId) return [];
+  try {
+    const txKey = `${LOCAL_TRANSACTIONS_KEY_PREFIX}${userId}`;
+    const raw = await AsyncStorage.getItem(txKey);
+    if (!raw) return [];
+    return JSON.parse(raw) || [];
+  } catch (err) {
+    console.warn("Could not load local transactions from AsyncStorage:", err);
+    return [];
+  }
+}
+
 export async function saveImportedStatement(userId, transactions, details, options = {}) {
   assertUserId(userId);
   if (!Array.isArray(transactions) || transactions.length === 0) {
@@ -1406,6 +2042,9 @@ export async function saveImportedStatement(userId, transactions, details, optio
     importedAt: details.importedAt || new Date(),
     skippedCount: details.skippedCount || 0,
   });
+
+  // Always save statement and all transactions locally to AsyncStorage first (offline-first guarantee)
+  await saveLocalStatement(userId, { id: statementId, ...statementPayload }, transactions);
 
   // Refresh the exact Firebase identity immediately before any private write.
   // This prevents a stale or switched session from being misreported as a rules failure.
@@ -1471,8 +2110,8 @@ export async function saveImportedStatement(userId, transactions, details, optio
   }
 
   let publishedCount = 0;
-  for (let start = 0; start < transactions.length; start += FIRESTORE_BATCH_LIMIT) {
-    const chunk = transactions.slice(start, start + FIRESTORE_BATCH_LIMIT);
+  for (let start = 0; start < transactions.length; start += STATEMENT_STAGING_BATCH_LIMIT) {
+    const chunk = transactions.slice(start, start + STATEMENT_STAGING_BATCH_LIMIT);
     const batch = writeBatch(db);
     chunk.forEach((transaction) => {
       batch.set(
@@ -1506,7 +2145,7 @@ export async function saveImportedStatement(userId, transactions, details, optio
   };
 }
 
-const LOCAL_FIRST_CLOUD_WAIT_MS = 5_000;
+const LOCAL_FIRST_CLOUD_WAIT_MS = 30_000;
 
 function cloudSyncFromSaveError(error, requestedCount) {
   const savedCount = Number.isFinite(error.savedCount)
@@ -1616,6 +2255,7 @@ export async function retryImportedStatementCloudSave(userId, pendingCloudSave) 
         skippedCount: pendingCloudSave.skippedCount || 0,
         insights,
       },
+      { commitTimeoutMs: 30_000 },
     );
     return {
       statementId,
@@ -1641,14 +2281,14 @@ export async function retryImportedStatementCloudSave(userId, pendingCloudSave) 
   }
 }
 
-export async function importCsvStatement(userId) {
+export async function importCsvStatement(userId, options = {}) {
   assertUserId(userId);
   let picked = null;
   let rawCsvText = null;
   let parsed = null;
 
   try {
-    picked = await pickCsvFile();
+    picked = options?.picked ? options.picked : await pickCsvFile({ includePdf: true, ...options });
     if (picked.canceled) {
       return {
         canceled: true,
@@ -1661,8 +2301,173 @@ export async function importCsvStatement(userId) {
     }
 
     rawCsvText = picked.text;
-    picked.text = "";
-    parsed = parseCsvStatement(rawCsvText, userId);
+
+    let isExcel = /\.(xlsx|xls)$/i.test(picked.fileName);
+    let isPdf = /\.pdf$/i.test(picked.fileName);
+
+    let inputBuffer = null;
+    if (picked.base64) {
+      inputBuffer = Buffer.from(picked.base64, "base64");
+    } else if (typeof rawCsvText === "string" && rawCsvText.length > 0) {
+      inputBuffer = Buffer.from(rawCsvText, "binary");
+    }
+
+    // Auto-detect encrypted Excel (OLE CFB 0xd0cf11e0) or PDF (%PDF 0x25504446) even if extension is .csv or .txt
+    if (!isExcel && !isPdf && inputBuffer && inputBuffer.length >= 4) {
+      if (inputBuffer[0] === 0xd0 && inputBuffer[1] === 0xcf && inputBuffer[2] === 0x11 && inputBuffer[3] === 0xe0) {
+        isExcel = true;
+      } else if (inputBuffer[0] === 0x25 && inputBuffer[1] === 0x50 && inputBuffer[2] === 0x44 && inputBuffer[3] === 0x46) {
+        isPdf = true;
+      }
+    }
+
+    if (isPdf) {
+      const { extractStatementWithPassword } = await import("./pdfStatementParser");
+      try {
+        parsed = await extractStatementWithPassword(
+          rawCsvText || (inputBuffer ? inputBuffer.toString("binary") : ""),
+          picked.fileName,
+          options?.password,
+          userId,
+        );
+      } catch (pdfErr) {
+        if (pdfErr && typeof pdfErr === "object") {
+          pdfErr.picked = picked;
+        }
+        throw pdfErr;
+      }
+    } else if (isExcel) {
+      let workbook;
+      if (!inputBuffer || inputBuffer.length === 0) {
+        throw new CsvImportError("CSV_EMPTY", "The selected statement file is empty.", {
+          fileName: picked.fileName,
+        });
+      }
+
+      let isEncrypted = false;
+      try {
+        isEncrypted = isExcelEncrypted(inputBuffer);
+      } catch {
+        isEncrypted = false;
+      }
+
+      const XLSX = getXLSX();
+
+      if (isEncrypted) {
+        if (!options?.password) {
+          const passErr = new CsvImportError(
+            "PASSWORD_REQUIRED",
+            "This document is password protected. Enter the password required by your bank to open it.",
+            { fileName: picked.fileName, isEncrypted: true },
+          );
+          passErr.picked = picked;
+          throw passErr;
+        }
+        let decryptedBuffer;
+        try {
+          decryptedBuffer = await fastDecryptExcel(inputBuffer, options.password);
+        } catch (decErr) {
+          const passErr = new CsvImportError(
+            "INCORRECT_PASSWORD",
+            "Could not open password-protected document with the provided password. Please check your password (e.g. PAN, DOB, or Account number) and try again.",
+            { fileName: picked.fileName, isEncrypted: true, cause: decErr },
+          );
+          passErr.picked = picked;
+          throw passErr;
+        }
+        try {
+          workbook = XLSX.read(decryptedBuffer, {
+            type: "buffer",
+            cellDates: true,
+            dateNF: "yyyy-mm-dd",
+          });
+        } catch (readErr) {
+          throw new CsvImportError(
+            "INVALID_STATEMENT",
+            "Could not read the decrypted spreadsheet worksheets.",
+            { fileName: picked.fileName, cause: readErr },
+          );
+        }
+      } else {
+        try {
+          workbook = XLSX.read(inputBuffer, {
+            type: "buffer",
+            cellDates: true,
+            dateNF: "yyyy-mm-dd",
+            ...(options?.password ? { password: options.password } : {}),
+          });
+        } catch (xlsxErr) {
+          const errMsg = String(xlsxErr?.message || xlsxErr || "");
+          if (/password|encrypted|protect/i.test(errMsg)) {
+            if (options?.password) {
+              try {
+                const decryptedBuffer = await fastDecryptExcel(inputBuffer, options.password);
+                workbook = XLSX.read(decryptedBuffer, {
+                  type: "buffer",
+                  cellDates: true,
+                  dateNF: "yyyy-mm-dd",
+                });
+              } catch {
+                const passErr = new CsvImportError(
+                  "INCORRECT_PASSWORD",
+                  "Could not open password-protected document with the provided password. Please check your password (e.g. PAN, DOB, or Account number) and try again.",
+                  { fileName: picked.fileName, isEncrypted: true },
+                );
+                passErr.picked = picked;
+                throw passErr;
+              }
+            } else {
+              const passErr = new CsvImportError(
+                "PASSWORD_REQUIRED",
+                "This document is password protected. Enter the password required by your bank to open it.",
+                { fileName: picked.fileName, isEncrypted: true },
+              );
+              passErr.picked = picked;
+              throw passErr;
+            }
+          } else {
+            throw xlsxErr;
+          }
+        }
+      }
+
+      if (!workbook || !Array.isArray(workbook.SheetNames) || workbook.SheetNames.length === 0) {
+        throw new CsvImportError(
+          "INVALID_STATEMENT",
+          "The selected Excel file contains no readable worksheets.",
+          { fileName: picked.fileName },
+        );
+      }
+
+      // Check all sheets, find the one with transaction table!
+      let sheetCsv = "";
+      for (const name of workbook.SheetNames) {
+        const sheet = workbook.Sheets[name];
+        if (!sheet) continue;
+        const csv = XLSX.utils.sheet_to_csv(sheet, { dateNF: "yyyy-mm-dd" });
+        if (csv && csv.trim()) {
+          if (/(?:date|narration|description|particulars|withdrawal|deposit|debit|credit|amount|balance)/i.test(csv)) {
+            sheetCsv = csv;
+            break;
+          }
+          if (!sheetCsv) {
+            sheetCsv = csv;
+          }
+        }
+      }
+
+      if (!sheetCsv || !sheetCsv.trim()) {
+        throw new CsvImportError(
+          "CSV_EMPTY",
+          "The selected Excel sheet contains no transaction records.",
+          { fileName: picked.fileName },
+        );
+      }
+      parsed = parseCsvStatement(sheetCsv, userId);
+    } else {
+      parsed = parseCsvStatement(rawCsvText, userId);
+    }
+
 
     // The immutable JS string cannot be overwritten, but all application references are
     // released before the first Firestore operation. Parsed row arrays are cleared in the parser.
@@ -1728,6 +2533,9 @@ export async function importCsvStatement(userId) {
       pendingCloudSave,
     };
   } catch (error) {
+    if (picked && !error.picked) {
+      error.picked = picked;
+    }
     if (error instanceof CsvImportError) {
       if (picked && !picked.canceled) error.fileName = picked.fileName;
       if (parsed) {
@@ -1740,9 +2548,7 @@ export async function importCsvStatement(userId) {
     throw error;
   } finally {
     rawCsvText = null;
-    if (picked && typeof picked === "object" && "text" in picked) picked.text = "";
     if (parsed?.transactions) parsed.transactions.length = 0;
-    picked = null;
     parsed = null;
   }
 }

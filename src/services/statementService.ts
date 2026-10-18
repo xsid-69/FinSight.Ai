@@ -148,6 +148,15 @@ export async function loadPrivateStatements(
   try {
     snapshot = await getDocs(collection(db, "users", userId, "statements"));
   } catch (error) {
+    try {
+      const { loadLocalStatements } = await import("./csvService");
+      const local = await loadLocalStatements(userId);
+      if (Array.isArray(local) && local.length > 0) {
+        return { statements: local as SavedStatement[], ignoredCount: 0 };
+      }
+    } catch {
+      // Ignored
+    }
     throw new StatementLoadError(
       privateCloudReadMessage("your saved analyses", error),
       error,
@@ -165,6 +174,18 @@ export async function loadPrivateStatements(
   statements.sort(
     (left, right) => right.importedAt.localeCompare(left.importedAt) || right.id.localeCompare(left.id),
   );
+
+  if (statements.length === 0) {
+    try {
+      const { loadLocalStatements } = await import("./csvService");
+      const local = await loadLocalStatements(userId);
+      if (Array.isArray(local) && local.length > 0) {
+        return { statements: local as SavedStatement[], ignoredCount: 0 };
+      }
+    } catch {
+      // Ignored
+    }
+  }
 
   return { statements, ignoredCount };
 }
@@ -249,6 +270,20 @@ export async function loadPrivateStatement(
       insights,
     } as SavedStatementDetail;
   } catch (error) {
+    try {
+      const { loadLocalStatementDetail } = await import("./csvService");
+      const local = await loadLocalStatementDetail(userId, statementId);
+      if (local && local.statement && Array.isArray(local.transactions)) {
+        return {
+          statement: local.statement,
+          transactions: local.transactions,
+          insights: buildFinancialInsights(local.transactions),
+          ignoredCount: 0,
+        } as SavedStatementDetail;
+      }
+    } catch {
+      // Ignored
+    }
     if (error instanceof StatementLoadError) throw error;
     throw new StatementLoadError(
       privateCloudReadMessage("this saved analysis", error),

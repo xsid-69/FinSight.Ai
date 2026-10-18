@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 680" width="100%" height="100%">
+  <defs>
+    <linearGradient id="pipeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <marker id="arrowP" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10B981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; fill: #FFFFFF; font-size: 22px; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; fill: #94A3B8; font-size: 13px; }
+    .step-num { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; font-size: 18px; }
+    .step-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 14px; fill: #F8FAFC; }
+    .step-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94A3B8; }
+    .step-tech { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 600; fill: #38BDF8; }
+  </style>
+
+  <rect width="1150" height="680" rx="16" fill="url(#pipeBg)" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Header -->
+  <text x="60" y="50" class="title">FinSight AI — 6 Core Features Execution &amp; Data Pipeline</text>
+  <text x="60" y="72" class="subtitle">Architectural Sequence from features.md: Zero-Effort Ingestion ➔ Air-Gapped Math ➔ Grounded AI Delivery</text>
+
+  <!-- Step 01 -->
+  <g transform="translate(60, 110)">
+    <rect width="320" height="150" rx="12" fill="#131D2E" stroke="#1E3A8A" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#10B981" opacity="0.2"/>
+    <text x="28" y="43" class="step-num" fill="#10B981">01</text>
+    <text x="68" y="34" class="step-title">CSV Statement Analyzer</text>
+    <text x="68" y="50" class="step-tech">papaparse • expo-document-picker • Firestore</text>
+    <text x="20" y="80" class="step-desc">Instant multi-bank statement ingestion (HDFC, SBI, ICICI).</text>
+    <text x="20" y="98" class="step-desc">Automatic column detection &amp; SHA-256 deduplication.</text>
+    <text x="20" y="116" class="step-desc">Builds baseline ledger without native permission hurdles.</text>
+    <rect x="20" y="126" width="90" height="16" rx="4" fill="#10B981" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #34D399;">🟢 VERY EASY</text>
+  </g>
+
+  <!-- Arrow 01 to 02 -->
+  <path d="M 380 185 L 415 185" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Step 02 -->
+  <g transform="translate(420, 110)">
+    <rect width="320" height="150" rx="12" fill="#131D2E" stroke="#854D0E" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#F59E0B" opacity="0.2"/>
+    <text x="26" y="43" class="step-num" fill="#F59E0B">02</text>
+    <text x="68" y="34" class="step-title">Tier-1 Local Regex Parser</text>
+    <text x="68" y="50" class="step-tech">ES6 Regex • String Matchers • privacySanitizer</text>
+    <text x="20" y="80" class="step-desc">Zero API cost; parses amount, type &amp; merchant in &lt;2ms.</text>
+    <text x="20" y="98" class="step-desc">Strips sensitive OTPs &amp; card PINs in volatile heap memory.</text>
+    <text x="20" y="116" class="step-desc">Discards personal texts and promo spam in &lt;2ms.</text>
+    <rect x="20" y="126" width="70" height="16" rx="4" fill="#F59E0B" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #FBBF24;">🟡 EASY</text>
+  </g>
+
+  <!-- Arrow 02 to 05 -->
+  <path d="M 740 185 L 775 185" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Step 05 (Logical Ingestion Partner) -->
+  <g transform="translate(780, 110)">
+    <rect width="310" height="150" rx="12" fill="#131D2E" stroke="#C2410C" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#F97316" opacity="0.2"/>
+    <text x="26" y="43" class="step-num" fill="#F97316">05</text>
+    <text x="68" y="34" class="step-title">Native SMS Broadcast Radar</text>
+    <text x="68" y="50" class="step-tech">Kotlin SmsReceiver.kt • RECEIVE_SMS</text>
+    <text x="20" y="80" class="step-desc">High-priority Android OS broadcast event listener.</text>
+    <text x="20" y="98" class="step-desc">Zero background battery drain; intercepts UPI alerts.</text>
+    <text x="20" y="116" class="step-desc">Live payment radar feeding the Settlement Stream feed.</text>
+    <rect x="20" y="126" width="130" height="16" rx="4" fill="#F97316" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #FB923C;">🟠 MODERATE-HARD</text>
+  </g>
+
+  <!-- Large Downward Connector to Processing Tier -->
+  <path d="M 935 260 L 935 310 L 220 310 L 220 330" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Step 03 -->
+  <g transform="translate(60, 335)">
+    <rect width="320" height="150" rx="12" fill="#131D2E" stroke="#854D0E" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#F59E0B" opacity="0.2"/>
+    <text x="26" y="43" class="step-num" fill="#F59E0B">03</text>
+    <text x="68" y="34" class="step-title">Goal Affordability Simulator</text>
+    <text x="68" y="50" class="step-tech">Holt-Winters Smoothing • Gifted Charts</text>
+    <text x="20" y="80" class="step-desc">Projects 12–36 month forward-looking liquid cash runway.</text>
+    <text x="20" y="98" class="step-desc">Evaluates large purchases (₹1L iPhone 17 upfront impact).</text>
+    <text x="20" y="116" class="step-desc">Computes 0-100 Purchase Safety Score &amp; liquid cushion.</text>
+    <rect x="20" y="126" width="100" height="16" rx="4" fill="#F59E0B" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #FBBF24;">🟡 MODERATE</text>
+  </g>
+
+  <!-- Arrow 03 to 04 -->
+  <path d="M 380 410 L 415 410" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Step 04 -->
+  <g transform="translate(420, 335)">
+    <rect width="320" height="150" rx="12" fill="#131D2E" stroke="#C2410C" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#F97316" opacity="0.2"/>
+    <text x="26" y="43" class="step-num" fill="#F97316">04</text>
+    <text x="68" y="34" class="step-title">Cohort Financial Mirror</text>
+    <text x="68" y="50" class="step-tech">Kernel Density Estimation (KDE) • Firestore</text>
+    <text x="20" y="80" class="step-desc">Continuous probability curves over peer demographics.</text>
+    <text x="20" y="98" class="step-desc">Nagpur student cohort comparison (N=5,420 samples).</text>
+    <text x="20" y="116" class="step-desc">Top 22% category standing with zero PII exposure.</text>
+    <rect x="20" y="126" width="100" height="16" rx="4" fill="#F97316" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #FB923C;">🟠 MODERATE</text>
+  </g>
+
+  <!-- Arrow 04 to 06 -->
+  <path d="M 740 410 L 775 410" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Step 06 -->
+  <g transform="translate(780, 335)">
+    <rect width="310" height="150" rx="12" fill="#131D2E" stroke="#991B1B" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="18" fill="#EF4444" opacity="0.2"/>
+    <text x="26" y="43" class="step-num" fill="#EF4444">06</text>
+    <text x="68" y="34" class="step-title">Tier-3 AI Classifier + Copilot</text>
+    <text x="68" y="50" class="step-tech">OpenAI gpt-4o-mini • Zod Schemas</text>
+    <text x="20" y="80" class="step-desc">Fallback classifier for unknown VPAs with cloud cache.</text>
+    <text x="20" y="98" class="step-desc">Grounded financial copilot: zero arithmetic hallucination.</text>
+    <text x="20" y="116" class="step-desc">Strict Zod schema guardrails enforcing true math facts.</text>
+    <rect x="20" y="126" width="100" height="16" rx="4" fill="#EF4444" opacity="0.15"/>
+    <text x="28" y="138" style="font-size: 9px; font-weight: 700; fill: #F87171;">🔴 ADVANCED</text>
+  </g>
+
+  <!-- Bottom Data Harmonization Bar -->
+  <g transform="translate(60, 515)">
+    <rect width="1030" height="130" rx="12" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <text x="30" y="36" class="step-title" fill="#F8FAFC">DATA HARMONIZATION &amp; MATHEMATICAL CERTAINTY ENGINE</text>
+    <text x="30" y="56" class="step-desc">Every transaction from Step 01 (Statements) and Step 05 (SMS Broadcasts) is sanitized by Step 02, mapped by Step 06,</text>
+    <text x="30" y="74" class="step-desc">and unified into an immutable SHA-256 deduplicated stream. Step 03 &amp; Step 04 run offline statistical transformations,</text>
+    <text x="30" y="92" class="step-desc">delivering pre-calculated JSON math facts directly to Step 06's AI Copilot with absolute zero hallucination risk.</text>
+    <rect x="30" y="102" width="220" height="18" rx="4" fill="#10B981" opacity="0.15"/>
+    <text x="38" y="115" style="font-size: 9px; font-weight: 700; fill: #34D399;">✔ 100% AIR-GAPPED CORE COMPUTATION</text>
+  </g>
+</svg>

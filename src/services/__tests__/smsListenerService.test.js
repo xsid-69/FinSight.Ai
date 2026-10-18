@@ -1,9 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SmsListener from '@dr.pogodin/react-native-sms-listener';
+import { SmsListenerBridge } from '../smsListenerBridge';
 import { setDoc } from 'firebase/firestore';
 import * as Haptics from 'expo-haptics';
 import { startSmsTracking, stopSmsTracking } from '../smsListenerService';
 import { saveLocalSmsTransaction } from '../smsStorageService';
+
+jest.mock('../smsListenerBridge', () => ({
+  SmsListenerBridge: {
+    addListener: jest.fn(),
+    readRecentSms: jest.fn().mockResolvedValue([]),
+  },
+}));
 
 jest.mock('firebase/firestore', () => ({
   collection: jest.fn(() => ({})),
@@ -32,7 +39,7 @@ describe('smsListenerService', () => {
     await AsyncStorage.clear();
     jest.clearAllMocks();
     mockRemove = jest.fn();
-    SmsListener.addListener.mockImplementation((cb) => {
+    SmsListenerBridge.addListener.mockImplementation((cb) => {
       capturedListener = cb;
       return { remove: mockRemove };
     });
@@ -46,7 +53,7 @@ describe('smsListenerService', () => {
     const onNewTx = jest.fn();
     const unsubscribe = startSmsTracking('user_123', onNewTx);
 
-    expect(SmsListener.addListener).toHaveBeenCalled();
+    expect(SmsListenerBridge.addListener).toHaveBeenCalled();
     expect(typeof capturedListener).toBe('function');
 
     unsubscribe();

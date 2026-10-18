@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <defs>
+    <linearGradient id="c3-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="c3-red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="c3-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FCD34D"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="512" fill="url(#c3-bg)"/>
+
+  <!-- Left Icon Group -->
+  <g id="icon" transform="translate(140, 106)">
+    <!-- Squircle container -->
+    <rect width="300" height="300" rx="68" fill="#1E293B" stroke="#334155" stroke-width="4"/>
+
+    <!-- Staggered Velocity Bars (Financial Inflow/Outflow) -->
+    <rect x="55" y="170" width="34" height="85" rx="17" fill="#10B981"/>
+    <rect x="105" y="130" width="34" height="125" rx="17" fill="#38BDF8"/>
+    <rect x="155" y="90" width="34" height="165" rx="17" fill="url(#c3-red)"/>
+
+    <!-- Signature 4-Point AI Intelligence Star / Spark -->
+    <path d="M 225 95 Q 225 155 165 155 Q 225 155 225 215 Q 225 155 285 155 Q 225 155 225 95 Z" fill="url(#c3-amber)"/>
+    <circle cx="225" cy="155" r="10" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Right Wordmark Group -->
+  <g id="wordmark" transform="translate(500, 200)">
+    <!-- Primary Name -->
+    <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="78" fill="#FFFFFF" letter-spacing="-1px">Fin<tspan fill="#EF4444">Sight</tspan></text>
+    
+    <!-- AI Pill Badge -->
+    <rect x="330" y="10" width="100" height="60" rx="30" fill="url(#c3-amber)"/>
+    <text x="380" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="36" fill="#0F172A" text-anchor="middle">AI</text>
+
+    <!-- Tagline -->
+    <text x="0" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="500" font-size="20" fill="#94A3B8" letter-spacing="3px">AUTONOMOUS FINANCIAL COPILOT</text>
+  </g>
+</svg>

@@ -5,6 +5,7 @@ import { MotiView } from "moti";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SmsPermissionBanner } from "../../components/SmsPermissionBanner";
+import { NotificationAccessCard } from "../../components/NotificationAccessCard";
 import {
   AlertCircle,
   ArrowRight,
@@ -25,6 +26,8 @@ import * as Haptics from "expo-haptics";
 
 import { Money } from "../../components/banking/Money";
 import { Card } from "../../components/finsight";
+import { MastercardMark } from "../../components/finsight/MastercardMark";
+import { EmvChip, ContactlessWave } from "../../components/finsight/CreditCardMock";
 import { SpringPressable } from "../../components/motion/SpringPressable";
 import { PulsingDot } from "../../components/motion/PulsingDot";
 import { InteractiveBannerCarousel } from "../../components/motion/InteractiveBannerCarousel";
@@ -57,6 +60,7 @@ interface OverviewContentProps {
   onRetry?: () => void;
   smsPermissionGranted?: boolean;
   onRequestSmsPermission?: () => void;
+  onNewTransaction?: (tx: PrivateTransaction) => void;
 }
 
 function formatInrLabel(amount: number) {
@@ -66,30 +70,39 @@ function formatInrLabel(amount: number) {
   })}`;
 }
 
-function SnapshotMetric({ label, amount }: { label: string; amount: number }) {
+function SnapshotMetric({ label, amount, type }: { label: string; amount: number; type?: "income" | "spent" }) {
+  const isIncome = type === "income";
   return (
     <YStack
       flex={1}
-      minWidth={116}
-      minHeight={68}
-      paddingHorizontal={13}
-      paddingVertical={11}
-      borderRadius={16}
-      backgroundColor={overlays.onBrand08}
+      minWidth={96}
+      minHeight={66}
+      paddingHorizontal={14}
+      paddingVertical={10}
+      borderRadius={18}
+      backgroundColor="rgba(255, 255, 255, 0.08)"
       borderWidth={1}
-      borderColor={overlays.onBrand12}
+      borderColor="rgba(255, 255, 255, 0.14)"
       justifyContent="center"
       gap={4}
       accessible
       accessibilityLabel={`${label}, ${formatInrLabel(amount)}`}
     >
-      <Text fontSize={11.5} lineHeight={16} fontWeight="700" color="white" opacity={0.68}>
-        {label}
-      </Text>
+      <XStack alignItems="center" gap={6}>
+        <View
+          width={6}
+          height={6}
+          borderRadius={3}
+          backgroundColor={isIncome ? "#34D399" : "#F87171"}
+        />
+        <Text fontSize={11} lineHeight={16} fontWeight="700" color="rgba(255,255,255,0.72)" letterSpacing={0.4}>
+          {label}
+        </Text>
+      </XStack>
       <Money
         amount={Math.abs(amount)}
         kind="none"
-        size={17}
+        size={17.5}
         weight="800"
         color={palette.white}
         decColor={palette.goldSoft}
@@ -291,6 +304,7 @@ export function OverviewContent({
   onRetry,
   smsPermissionGranted = false,
   onRequestSmsPermission,
+  onNewTransaction,
 }: OverviewContentProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -438,35 +452,47 @@ export function OverviewContent({
         : "none" as const;
 
     return (
-      <YStack gap={13}>
+      <YStack gap={14}>
+        <XStack alignItems="center" justifyContent="space-between" marginBottom={4}>
+          <EmvChip />
+          <XStack alignItems="center" gap={10}>
+            <ContactlessWave size={17} color="rgba(255,255,255,0.7)" />
+            <MastercardMark size={26} />
+          </XStack>
+        </XStack>
+
         <YStack
           gap={3}
           accessible
           accessibilityLabel={`Net cash flow, ${formatInrLabel(insights.netCashFlow)}`}
         >
-          <Text fontSize={11.5} lineHeight={16} fontWeight="700" color="$onBrand" opacity={0.68}>
-            Net cash flow
+          <Text fontSize={10.5} textTransform="uppercase" letterSpacing={1.4} fontWeight="800" color="rgba(255,255,255,0.62)">
+            Net Cash Flow
           </Text>
           <Money
             amount={Math.abs(insights.netCashFlow)}
             kind={netKind}
             signed={insights.netCashFlow < 0}
-            size={30}
+            size={32}
             weight="800"
             color={palette.white}
             decColor={palette.goldSoft}
           />
         </YStack>
+
         <XStack gap={10} flexWrap="wrap">
-          <SnapshotMetric label="Money in" amount={insights.totalIncome} />
-          <SnapshotMetric label="Money out" amount={insights.totalSpent} />
+          <SnapshotMetric label="Money In" amount={insights.totalIncome} type="income" />
+          <SnapshotMetric label="Money Out" amount={insights.totalSpent} type="spent" />
         </XStack>
-        <XStack alignItems="center" gap={9}>
-          <Text fontSize={12} fontWeight="800" color="$onBrand">
-            {insights.transactionCount.toLocaleString("en-IN")} transactions
-          </Text>
-          <View width={4} height={4} borderRadius={2} backgroundColor="$orange" />
-          <Text flex={1} fontSize={11.5} lineHeight={16} color="$onBrand" opacity={0.68}>
+
+        <XStack alignItems="center" justifyContent="space-between" paddingTop={2}>
+          <XStack alignItems="center" gap={7}>
+            <View width={5} height={5} borderRadius={2.5} backgroundColor="$gold" />
+            <Text fontSize={12} fontWeight="800" color="$onBrand">
+              {insights.transactionCount.toLocaleString("en-IN")} transactions tracked
+            </Text>
+          </XStack>
+          <Text fontSize={11} fontWeight="600" color="rgba(255,255,255,0.6)">
             {insights.periodLabel}
           </Text>
         </XStack>
@@ -610,6 +636,13 @@ export function OverviewContent({
             </YStack>
           ) : null}
 
+          {/* Notification UPI Auto-Spend Tracking Banner if permission not yet granted */}
+          {Platform.OS === "android" ? (
+            <YStack marginTop={smsPermissionGranted ? 16 : 4}>
+              <NotificationAccessCard onScanComplete={onNewTransaction} />
+            </YStack>
+          ) : null}
+
           {/* Interactive Snapping Carousel with 3D Banners */}
           <InteractiveBannerCarousel
             navigation={navigation}
@@ -733,8 +766,9 @@ export function OverviewContent({
                     Analyse a bank statement
                   </Text>
                   <Text maxWidth={500} fontSize={12.5} lineHeight={18} color="$onBrand" opacity={0.78}>
-                    Import a CSV, sanitize it locally, and create your private financial analysis.
+                    Import a CSV, Excel sheet (.xlsx, .xls), or PDF, sanitize it locally, and create your private financial analysis.
                   </Text>
+
                 </YStack>
                 <View
                   width={42}

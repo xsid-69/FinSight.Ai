@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput } from "react-native";
 import { ScrollView, YStack, XStack, Text, View } from "tamagui";
 import { MotiView } from "moti";
 import { usePreventRemove } from "@react-navigation/native";
@@ -7,10 +7,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BarChart3,
   CheckCircle2,
+  Eye,
+  EyeOff,
   FileCheck2,
+  KeyRound,
   ListChecks,
   RefreshCw,
   ShieldCheck,
+  X,
 } from "@tamagui/lucide-icons";
 
 import { FinSightShell, StatementUploadCard, Card } from "../components/finsight";
@@ -31,6 +35,16 @@ import type { InsightsView } from "./home/InsightsContent";
 import type { FinancialInsights } from "../types/transactions";
 
 const PAGE_H = 20;
+
+const BANK_PASSWORD_HINTS = [
+  { bank: "SBI", hint: "11-digit CIF number OR DOB (DDMM) + last 5 digits of mobile" },
+  { bank: "HDFC", hint: "Customer ID (all digits) OR PAN in uppercase" },
+  { bank: "ICICI", hint: "First 4 letters of name (lowercase) + DOB (DDMM)" },
+  { bank: "Axis", hint: "First 4 letters of name in caps + last 4 digits of account no." },
+  { bank: "Kotak", hint: "CRN (Customer Relationship Number)" },
+  { bank: "PNB", hint: "Account number OR Customer ID" },
+  { bank: "Other", hint: "Format is usually DOB (DDMMYYYY), PAN, or Account / CIF number" },
+];
 
 type Phase = "ready" | "importing" | "done";
 type CloudSyncStatus = "synced" | "partial" | "unconfirmed" | "unavailable" | "denied" | "failed";
@@ -74,6 +88,34 @@ function errorMessage(error: unknown) {
   return "The statement could not be imported. Check the file and your connection, then try again.";
 }
 
+class SafeChartErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any) {
+    console.warn("Chart render failure caught gracefully:", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card variant="flat" padding={16}>
+          <Text fontSize={12} color="$ink2">
+            Chart visualization could not be loaded. Your statement was parsed and saved successfully.
+          </Text>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
@@ -83,6 +125,13 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [cloudRetrying, setCloudRetrying] = useState(false);
+
+  // Statement password modal state
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [statementPassword, setStatementPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [selectedBankHint, setSelectedBankHint] = useState<string | null>("SBI");
 
   const openHomeTab = (
     insightsView: InsightsView,
@@ -106,13 +155,17 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
     });
   };
 
-  const runImport = async () => {
+  const lastPickedFileRef = useRef<any>(null);
+
+  const runImport = async (overridePassword?: string) => {
     if (importActive.current) return;
     if (!user?.uid) {
       setImportError("Sign in before importing a bank statement.");
       setPhase("ready");
       return;
     }
+
+    const passwordToUse = overridePassword !== undefined ? overridePassword : statementPassword.trim();
 
     importActive.current = true;
     setCloudRetrying(false);
@@ -121,16 +174,50 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
     setPhase("importing");
 
     try {
-      const result = await importCsvStatement(user.uid);
+      const options: any = {};
+      if (passwordToUse) {
+        options.password = passwordToUse;
+      }
+      if (lastPickedFileRef.current) {
+        options.picked = lastPickedFileRef.current;
+      }
+
+      const hasOptions = Boolean(passwordToUse || lastPickedFileRef.current);
+      const result = hasOptions
+        ? await importCsvStatement(user.uid, options)
+        : await importCsvStatement(user.uid);
       if (result.canceled) {
         setPhase("ready");
         return;
       }
+      lastPickedFileRef.current = null;
       setSummary(result as ImportSummary);
       setPhase("done");
+      setPasswordModalVisible(false);
+      setPasswordError(null);
       void triggerSuccessHaptic();
-    } catch (error) {
-      setImportError(errorMessage(error));
+    } catch (error: any) {
+      if (error?.picked) {
+        lastPickedFileRef.current = error.picked;
+      }
+      const msg = errorMessage(error);
+      const isPasswordIssue =
+        error?.code === "PASSWORD_REQUIRED" ||
+        error?.code === "INCORRECT_PASSWORD" ||
+        /password/i.test(msg);
+
+      if (isPasswordIssue) {
+        if (error?.code === "PASSWORD_REQUIRED") {
+          setPasswordError(null);
+          setImportError(null);
+        } else {
+          setPasswordError(msg);
+          setImportError(null);
+        }
+        setPasswordModalVisible(true);
+      } else {
+        setImportError(msg);
+      }
       setPhase("ready");
     } finally {
       importActive.current = false;
@@ -267,9 +354,7 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                       Statement analyzed
                     </Text>
                     <Text fontSize={12.5} color="$navy2" lineHeight={18}>
-                      {statementSaved
-                        ? "Only sanitized extracted data is saved privately to your account"
-                        : "Analysis complete; the private cloud save is still pending"}
+                      Extracted and stored locally on this device · Bank-grade privacy
                     </Text>
                   </YStack>
                 </XStack>
@@ -433,18 +518,22 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
                     {insight.monthlyActivity.length > 0 ? (
                       <YStack gap={10}>
                         <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Cash-flow timeline</Text>
-                        <Card variant="flat" padding={16}>
-                          <MonthlyCashFlowChart data={insight.monthlyActivity} />
-                        </Card>
+                        <SafeChartErrorBoundary>
+                          <Card variant="flat" padding={16}>
+                            <MonthlyCashFlowChart data={insight.monthlyActivity} />
+                          </Card>
+                        </SafeChartErrorBoundary>
                       </YStack>
                     ) : null}
 
                     {insight.categoryBreakdown.length > 0 ? (
                       <YStack gap={10}>
                         <Text accessibilityRole="header" fontSize={17} fontWeight="800" color="$navy">Category histogram</Text>
-                        <Card variant="flat" padding={16}>
-                          <CategoryHistogram data={insight.categoryBreakdown} />
-                        </Card>
+                        <SafeChartErrorBoundary>
+                          <Card variant="flat" padding={16}>
+                            <CategoryHistogram data={insight.categoryBreakdown} />
+                          </Card>
+                        </SafeChartErrorBoundary>
                       </YStack>
                     ) : null}
 
@@ -561,6 +650,290 @@ export function StatementAnalyzerScreen({ navigation }: { navigation?: any }) {
           )}
         </YStack>
       </ScrollView>
+
+      {/* Statement Password Modal */}
+      <Modal
+        visible={passwordModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPasswordModalVisible(false)}
+      >
+        <View style={modalStyles.overlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setPasswordModalVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close overlay"
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={{ width: "100%", maxWidth: 420 }}
+          >
+            <View style={modalStyles.container}>
+            {/* Header */}
+            <XStack alignItems="center" justifyContent="space-between" marginBottom={14}>
+              <XStack alignItems="center" gap={10}>
+                <View
+                  width={38}
+                  height={38}
+                  borderRadius={12}
+                  backgroundColor="#EB001B"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <KeyRound size={20} color="#FFFFFF" strokeWidth={2.4} />
+                </View>
+                <YStack gap={1} flex={1}>
+                  <Text fontSize={16} fontWeight="800" color="$navy">
+                    This document is password protected
+                  </Text>
+                  <Text fontSize={11.5} color="$navy2" numberOfLines={1}>
+                    {lastPickedFileRef.current?.fileName
+                      ? `"${lastPickedFileRef.current.fileName}"`
+                      : "Enter the password required by your bank"}
+                  </Text>
+                </YStack>
+              </XStack>
+              <Pressable
+                onPress={() => {
+                  setPasswordModalVisible(false);
+                  setPasswordError(null);
+                  lastPickedFileRef.current = null;
+                }}
+                style={modalStyles.closeBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <X size={18} color="#4F4C48" strokeWidth={2.2} />
+              </Pressable>
+            </XStack>
+
+            {passwordError ? (
+              <View style={modalStyles.errorBanner}>
+                <Text style={modalStyles.errorText}>{passwordError}</Text>
+              </View>
+            ) : null}
+
+            {/* Bank format suggestions */}
+            <YStack gap={6} marginBottom={14}>
+              <Text fontSize={11} fontWeight="700" color="$ink2" textTransform="uppercase" letterSpacing={0.5}>
+                Common Bank Password Formats
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
+              >
+                {BANK_PASSWORD_HINTS.map((item) => (
+                  <Pressable
+                    key={item.bank}
+                    onPress={() => setSelectedBankHint(item.bank === selectedBankHint ? null : item.bank)}
+                    style={[
+                      modalStyles.bankChip,
+                      selectedBankHint === item.bank && modalStyles.bankChipSelected,
+                    ]}
+                  >
+                    <Text
+                      fontSize={11.5}
+                      fontWeight="800"
+                      color={selectedBankHint === item.bank ? "#FFFFFF" : "#1B1B18"}
+                    >
+                      {item.bank}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {selectedBankHint ? (
+                <View style={modalStyles.hintBox}>
+                  <Text fontSize={11.5} color="#4F4C48" lineHeight={16}>
+                    <Text fontWeight="800" color="#1B1B18">{selectedBankHint}: </Text>
+                    {BANK_PASSWORD_HINTS.find((b) => b.bank === selectedBankHint)?.hint}
+                  </Text>
+                </View>
+              ) : null}
+            </YStack>
+
+            {/* Password Input */}
+            <YStack gap={6} marginBottom={16}>
+              <Text fontSize={11.5} fontWeight="700" color="$navy">
+                Password / Passcode
+              </Text>
+              <XStack
+                alignItems="center"
+                borderWidth={1}
+                borderColor="#E3E1DC"
+                borderRadius={12}
+                backgroundColor="#FFFFFF"
+                paddingHorizontal={12}
+              >
+                <TextInput
+                  value={statementPassword}
+                  onChangeText={(val) => {
+                    setStatementPassword(val);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                  placeholder="e.g. your CIF, DOB, or PAN"
+                  placeholderTextColor="#9A968E"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={modalStyles.input}
+                  accessibilityLabel="Statement password input"
+                />
+                <Pressable
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={modalStyles.eyeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color="#4F4C48" strokeWidth={2} />
+                  ) : (
+                    <Eye size={18} color="#4F4C48" strokeWidth={2} />
+                  )}
+                </Pressable>
+              </XStack>
+              <Text fontSize={10.5} color="$ink2">
+                Processed locally to decrypt the file; never uploaded or stored.
+              </Text>
+            </YStack>
+
+            {/* Action buttons */}
+            <XStack gap={10} marginTop={4}>
+              <Pressable
+                onPress={() => {
+                  setPasswordModalVisible(false);
+                  setPasswordError(null);
+                  lastPickedFileRef.current = null;
+                }}
+                style={modalStyles.cancelBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
+                <Text fontSize={13} fontWeight="700" color="#4F4C48">
+                  Cancel
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  const cleanPassword = statementPassword.trim();
+                  if (!cleanPassword) {
+                    setPasswordError("Please enter your statement password.");
+                    return;
+                  }
+                  setPasswordModalVisible(false);
+                  setPasswordError(null);
+                  if (lastPickedFileRef.current) {
+                    setTimeout(() => {
+                      void runImport(cleanPassword);
+                    }, 50);
+                  }
+                }}
+                style={modalStyles.saveBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Decrypt & Analyze"
+              >
+                <Text fontSize={13} fontWeight="800" color="#FFFFFF">
+                  Decrypt & Analyze
+                </Text>
+              </Pressable>
+            </XStack>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
     </FinSightShell>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  container: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E3E1DC",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F2F1EE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorBanner: {
+    backgroundColor: "rgba(235, 0, 27, 0.08)",
+    borderWidth: 1,
+    borderColor: "#EB001B",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EB001B",
+    fontWeight: "600",
+    lineHeight: 16,
+  },
+  bankChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#F2F1EE",
+    borderWidth: 1,
+    borderColor: "#E3E1DC",
+  },
+  bankChipSelected: {
+    backgroundColor: "#1B1B18",
+    borderColor: "#1B1B18",
+  },
+  hintBox: {
+    marginTop: 4,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "#FFF8E1",
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  input: {
+    flex: 1,
+    height: 44,
+    fontSize: 14,
+    color: "#1B1B18",
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F2F1EE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#EB001B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

@@ -1,5 +1,6 @@
 import React from "react";
-import { XStack, View } from "tamagui";
+import { View } from "tamagui";
+import Svg, { Circle } from "react-native-svg";
 
 import { brandColors } from "../../theme/mastercard";
 
@@ -7,43 +8,39 @@ export interface MastercardMarkProps {
   size?: number;
 }
 
-/** Abstract warm overlap mark used as decorative FinSight artwork. */
-export function MastercardMark({ size = 26 }: MastercardMarkProps) {
-  const overlap = size * 0.36;
+/** Authentic Mastercard overlap mark with precision SVG geometry. */
+export function MastercardMark({ size = 28 }: MastercardMarkProps) {
+  const height = size;
+  const width = Math.round(size * 1.6);
+  const r = Math.round(size * 0.48);
+  const cy = Math.round(size * 0.5);
+  const cx1 = Math.round(size * 0.48);
+  const cx2 = Math.round(width - size * 0.48);
 
   return (
-    <XStack
-      width={size * 2 - overlap}
-      height={size}
+    <View
+      width={width}
+      height={height}
       alignItems="center"
+      justifyContent="center"
       accessible={false}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
       pointerEvents="none"
     >
-      <View
-        width={size}
-        height={size}
-        borderRadius={size / 2}
-        backgroundColor={brandColors.redIdentity}
-      />
-      <View
-        width={size}
-        height={size}
-        borderRadius={size / 2}
-        backgroundColor={brandColors.orange}
-        marginLeft={-overlap}
-        opacity={0.94}
-      />
-      <View
-        position="absolute"
-        left={size - overlap * 0.58}
-        width={Math.max(3, overlap * 0.24)}
-        height={size * 0.66}
-        borderRadius={999}
-        backgroundColor={brandColors.gold}
-        opacity={0.82}
-      />
-    </XStack>
+      <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        {/* Red Left Circle */}
+        <Circle cx={cx1} cy={cy} r={r} fill={brandColors.redIdentity} />
+        {/* Yellow-Orange Right Circle */}
+        <Circle cx={cx2} cy={cy} r={r} fill={brandColors.orange} opacity={0.95} />
+        {/* Center Interlocking Warm Overlap */}
+        <Circle
+          cx={(cx1 + cx2) / 2}
+          cy={cy}
+          r={r * 0.65}
+          fill={brandColors.gold}
+          opacity={0.85}
+        />
+      </Svg>
+    </View>
   );
 }
+

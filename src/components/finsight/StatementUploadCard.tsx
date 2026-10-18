@@ -1,17 +1,21 @@
 import React from "react";
 import { ActivityIndicator } from "react-native";
 import { XStack, YStack, Text, View } from "tamagui";
-import { AlertCircle, FileUp, ShieldCheck } from "@tamagui/lucide-icons";
+import { AlertCircle, FileUp, KeyRound, ShieldCheck } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
 
 export interface StatementUploadCardProps {
   onUpload?: () => void;
+  onOpenPasswordModal?: () => void;
+  hasPassword?: boolean;
   busy?: boolean;
   errorMessage?: string | null;
 }
 
 export function StatementUploadCard({
   onUpload,
+  onOpenPasswordModal,
+  hasPassword = false,
   busy = false,
   errorMessage,
 }: StatementUploadCardProps) {
@@ -35,9 +39,35 @@ export function StatementUploadCard({
           Import your bank statement
         </Text>
         <Text fontSize={14} color="$ink2" lineHeight={20}>
-          Choose a CSV exported by your bank. FinSight finds the transaction table, removes account metadata, and analyzes clean records on this device.
+          Choose a CSV, Excel sheet (.xlsx, .xls), or PDF statement exported by your bank. FinSight finds the transaction table, removes account metadata, and analyzes clean records on this device.
         </Text>
       </YStack>
+
+      {onOpenPasswordModal ? (
+        <XStack
+          alignItems="center"
+          gap={9}
+          paddingVertical={9}
+          paddingHorizontal={13}
+          borderRadius={13}
+          backgroundColor={hasPassword ? "rgba(46, 125, 50, 0.08)" : "$surfaceAlt"}
+          borderWidth={1}
+          borderColor={hasPassword ? "#2E7D32" : "$borderColor"}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            onOpenPasswordModal();
+          }}
+          pressStyle={{ opacity: 0.75 }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={hasPassword ? "Statement password configured" : "Configure statement password"}
+        >
+          <KeyRound size={16} color={hasPassword ? "#2E7D32" : "#EB001B"} strokeWidth={2.4} />
+          <Text fontSize={12} fontWeight="800" color={hasPassword ? "#2E7D32" : "$navy"} flexShrink={1}>
+            {hasPassword ? "Statement password set (tap to update)" : "Statement password protected? Enter password"}
+          </Text>
+        </XStack>
+      ) : null}
 
       <XStack
         minHeight={58}
@@ -93,16 +123,16 @@ export function StatementUploadCard({
 
       <View
         testID="statement-csv-upload"
-        minHeight={190}
+        minHeight={200}
         borderRadius="$lg"
         borderWidth={1}
         borderColor="$heroSurfaceRaised"
         backgroundColor="$heroSurface"
-        paddingHorizontal={22}
-        paddingVertical={26}
+        paddingHorizontal={18}
+        paddingVertical={24}
         alignItems="center"
         justifyContent="center"
-        gap={14}
+        gap={12}
         overflow="hidden"
         pressStyle={busy ? undefined : { scale: 0.99, opacity: 0.94 }}
         onPress={busy ? undefined : handleUpload}
@@ -133,9 +163,9 @@ export function StatementUploadCard({
           bottom={-48}
         />
         <View
-          width={62}
-          height={62}
-          borderRadius={31}
+          width={60}
+          height={60}
+          borderRadius={30}
           backgroundColor="$redDeep"
           borderWidth={1}
           borderColor="$red"
@@ -145,24 +175,39 @@ export function StatementUploadCard({
           {busy ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
-            <FileUp size={27} color="$onBrand" strokeWidth={2.1} />
+            <FileUp size={26} color="$onBrand" strokeWidth={2.1} />
           )}
         </View>
-        <YStack alignItems="center" gap={5} maxWidth={306}>
+        <YStack alignItems="center" gap={6} width="100%" maxWidth={320} paddingHorizontal={8}>
           <Text fontSize={16} fontWeight="800" color="$onBrand" textAlign="center">
-            {busy ? "Sanitizing and analyzing…" : errorMessage ? "Choose CSV and try again" : "Choose CSV statement"}
+            {busy ? "Sanitizing and analyzing…" : errorMessage ? "Choose file and try again" : "Choose bank statement"}
           </Text>
-          <Text fontSize={12.5} color="$onBrand" opacity={0.7} lineHeight={18} textAlign="center">
+          <Text fontSize={12} color="$onBrand" opacity={0.75} lineHeight={17} textAlign="center">
             {busy
               ? "Raw rows stay local while privacy-safe transaction fields are prepared"
-              : "Common bank CSV exports · one file up to 10 MB"}
+              : "CSV, Excel (.xlsx, .xls), or PDF · one file up to 10 MB"}
           </Text>
+
+          {!busy ? (
+            <XStack gap={6} marginTop={6} flexWrap="wrap" justifyContent="center">
+              <View paddingHorizontal={7} paddingVertical={3} borderRadius={6} backgroundColor="rgba(255,255,255,0.18)">
+                <Text fontSize={10} fontWeight="800" color="$onBrand" letterSpacing={0.5}>CSV</Text>
+              </View>
+              <View paddingHorizontal={7} paddingVertical={3} borderRadius={6} backgroundColor="rgba(255,255,255,0.18)">
+                <Text fontSize={10} fontWeight="800" color="$onBrand" letterSpacing={0.5}>EXCEL (.XLSX / .XLS)</Text>
+              </View>
+              <View paddingHorizontal={7} paddingVertical={3} borderRadius={6} backgroundColor="rgba(255,255,255,0.18)">
+                <Text fontSize={10} fontWeight="800" color="$onBrand" letterSpacing={0.5}>PDF</Text>
+              </View>
+            </XStack>
+          ) : null}
         </YStack>
       </View>
 
       <Text fontSize={12.5} color="$secondary" lineHeight={18} paddingHorizontal={2}>
-        The original CSV is never sent to Firestore. Sanitized dates, amounts, debit or credit type, descriptions, categories, and an optional reviewed merchant key are the only saved fields.
+        The original CSV is never sent to Firestore (neither are Excel or PDF files). Sanitized dates, amounts, debit or credit type, descriptions, categories, and an optional reviewed merchant key are the only saved fields.
       </Text>
+
     </YStack>
   );
 }

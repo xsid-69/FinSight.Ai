@@ -7,14 +7,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { ActivityIndicator, StyleSheet, View as NativeView } from "react-native";
-import { Text, View, XStack, YStack } from "tamagui";
-import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { onAuthStateChanged } from "firebase/auth";
 
 import { auth } from "../config/firebase";
-import { Card, Wordmark } from "../components/finsight";
-import { brandColors, brandGradients, brandOverlays } from "../theme/mastercard";
+import { AppLoadingScreen } from "../components/finsight";
 import {
   getUserProfile,
   loginWithEmail,
@@ -43,11 +40,18 @@ export function AuthProvider({ children }) {
 
       if (nextUser) {
         try {
+          await AsyncStorage.setItem('@finsight_active_user_id', nextUser.uid);
+        } catch (_) {}
+        try {
           const nextProfile = await getUserProfile(nextUser.uid);
           if (active) setProfile(nextProfile);
         } catch (profileError) {
           if (active) setError(profileError);
         }
+      } else {
+        try {
+          await AsyncStorage.removeItem('@finsight_active_user_id');
+        } catch (_) {}
       }
 
       if (active) setLoading(false);
@@ -132,65 +136,7 @@ export function AuthProvider({ children }) {
   );
 
   if (loading) {
-    return (
-      <NativeView
-        style={styles.loading}
-        accessible
-        accessibilityRole="progressbar"
-        accessibilityLabel="Restoring your secure session"
-      >
-        <LinearGradient colors={brandGradients.charcoal} start={{ x: 0.08, y: 0 }} end={{ x: 0.94, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View
-          position="absolute"
-          top={-90}
-          right={-80}
-          width={260}
-          height={260}
-          borderRadius={130}
-          backgroundColor={brandColors.redAction}
-          opacity={0.24}
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-        />
-        <View
-          position="absolute"
-          bottom={-74}
-          left={-48}
-          width={220}
-          height={220}
-          borderRadius={110}
-          backgroundColor={brandColors.orange}
-          opacity={0.13}
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-        />
-
-        <YStack width="100%" maxWidth={390} padding={24} gap={24}>
-          <Wordmark size={22} />
-          <YStack gap={6}>
-            <Text fontSize={10.5} lineHeight={15} fontWeight="800" color="rgba(255,255,255,0.66)" letterSpacing={1.15}>SECURE SESSION</Text>
-            <Text maxWidth={310} fontSize={27} lineHeight={34} fontWeight="800" color="white">Restoring your FinSight workspace</Text>
-          </YStack>
-
-          <Card padding={18} borderColor={brandOverlays.onBrand24} shadowOpacity={0.22}>
-            <XStack alignItems="center" gap={14}>
-              <View width={48} height={48} borderRadius={16} backgroundColor="$redSoft" alignItems="center" justifyContent="center">
-                <ActivityIndicator size="small" color={brandColors.redIdentity} />
-              </View>
-              <YStack flex={1} gap={3}>
-                <Text fontSize={14.5} lineHeight={20} fontWeight="800" color="$navy">Checking your authenticated account</Text>
-                <Text fontSize={12.5} lineHeight={18} color="$secondary">Your private session will open when restoration is complete.</Text>
-              </YStack>
-            </XStack>
-            <XStack marginTop={16} gap={6} accessible={false} importantForAccessibility="no-hide-descendants">
-              <View flex={1} height={4} borderRadius={2} backgroundColor="$red" />
-              <View flex={1} height={4} borderRadius={2} backgroundColor="$orange" />
-              <View flex={1} height={4} borderRadius={2} backgroundColor="$gold" />
-            </XStack>
-          </Card>
-        </YStack>
-      </NativeView>
-    );
+    return <AppLoadingScreen />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -204,13 +150,5 @@ export function useAuth() {
   return context;
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: brandColors.charcoal,
-  },
-});
-
 export { AuthContext };
+
