@@ -12,7 +12,7 @@
 [![Firebase](https://img.shields.io/badge/Firebase-v12.18-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
 [![Security](https://img.shields.io/badge/Security-Zero_OTP_Leakage-brightgreen?style=for-the-badge&logo=shield)](https://owasp.org/)
-[![Download APK](https://img.shields.io/badge/Production_APK-v2.9.6-10B981?style=for-the-badge&logo=android&logoColor=white)](./release/FinsightAI-v2.9.6.apk)
+[![Download APK](https://img.shields.io/badge/Production_APK-v2.9.9-10B981?style=for-the-badge&logo=android&logoColor=white)](./FinsightAI-v2.9.9.apk)
 [![License](https://img.shields.io/badge/License-MIT-gray?style=for-the-badge)](./finsight/LICENSE)
 
 <br/>
@@ -865,6 +865,10 @@ Android OS Telephony               FinSight Native Hook           Privacy Saniti
 - **Transaction Deduplication Hash Matrix:** Each ingested transaction generates an immutable SHA-256 fingerprint:
   $$\text{Hash} = \text{SHA256}(\text{Date} + \text{Amount} + \text{Merchant} + \text{AccountLast4})$$
   Prevents duplicate entries across statement uploads, SMS alerts, and live push notifications.
+- **v2.9.9 (`feat v7`) Zero-Trust Rules, Scalable Gateway & UI Polish:**
+  - **Firestore Hardening (`firestore.rules`):** Owner-only reads on `/users/{userId}`, `hasPrivacySafeDescription` checks on `sms_transactions`, strict prohibition of `email` in `cohort_profiles` (mirrored in `authService.js` and `cohortService.js`), and removal of permissive nested wildcard rules.
+  - **API Gateway, Load Balancer & Rate Limiting (`gateway/`):** Multi-replica Node gateway behind an Nginx `least_conn` L7 load balancer (`gateway/nginx/nginx.conf`), Redis-ready per-tier sliding-window rate limiter (`429` + `Retry-After`), `Idempotency-Key` deduplication on statement imports, cache-aside `/v1/cohort/summary`, PII-scrubbing AI Copilot Gateway with a `CLOSED`/`OPEN`/`HALF_OPEN` circuit breaker, and `/healthz`, `/readyz`, `/metrics` endpoints (`docker-compose.yml`).
+  - **UI/UX Craft (`unslop` polish) & CI Gates:** 4px-grid alignment, `tabular-nums` alignment, and responsive touch targets across `Card`, `SummaryStatCard`, and `SectionHeading`, backed by `npm run typecheck` (`tsc --noEmit`), Jest, and `.github/workflows/ci.yml`.
 
 ### 3. Database Schema & Firestore Document Model
 
@@ -985,8 +989,15 @@ FinSight-AI/
 │   └── 07_peer_cohort_profile.jpg          # Peer benchmark profile (Nagpur cohort)
 ├── mockups/                                # Additional visual assets & device renders
 │   └── live.png                            # Physical device onboarding execution render
-├── release/                                # Standalone Android APK distributions
-│   └── FinsightAI-v2.9.6.apk               # Production ARM64-v8a Release APK (54.8 MB)
+├── FinsightAI-v2.9.9.apk                   # Production ARM64-v8a Release APK (57.5 MB)
+├── .github/workflows/ci.yml                # CI: Mobile typecheck, Jest & Gateway tests
+├── gateway/                                # Scalable API Gateway, LB & Rate Limiter
+│   ├── nginx/nginx.conf                    # L7 least_conn Load Balancer & edge IP limits
+│   ├── src/                                # Rate limiter, Circuit breaker & HTTP gateway
+│   ├── test/gateway.test.js                # Gateway integration test suite
+│   ├── Dockerfile & docker-compose.yml     # Multi-replica Gateway + Nginx + Redis stack
+├── release/                                # Archived Android APK distributions
+│   └── FinsightAI-v2.9.6.apk               # Previous Release APK
 ├── features.md                             # 6-Feature complexity & testing matrix
 ├── README.md                               # Executive documentation & architecture
 └── finsight/                               # React Native Application Root
