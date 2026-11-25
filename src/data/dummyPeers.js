@@ -319,25 +319,35 @@ export const SAMPLE_FRIEND_INVITES = [
  * Encodes a user's spending profile into a shareable FinSight Compare Link and text.
  */
 export function generateCompareLink(userProfile, userCategoryTotals, savingsRate = "55%") {
-  const name = encodeURIComponent(userProfile?.name || "FinSight User");
-  const f = Math.round(userCategoryTotals?.FOOD || 0);
-  const s = Math.round(userCategoryTotals?.SHOPPING || 0);
-  const t = Math.round(userCategoryTotals?.TRAVEL || 0);
-  const e = Math.round(userCategoryTotals?.ENTERTAINMENT || 0);
+  const rawName = userProfile?.name || "FinSight User";
+  const name = encodeURIComponent(rawName);
+  const f = Math.round(Number(userCategoryTotals?.FOOD) || 0);
+  const s = Math.round(Number(userCategoryTotals?.SHOPPING) || 0);
+  const t = Math.round(Number(userCategoryTotals?.TRAVEL) || 0);
+  const e = Math.round(Number(userCategoryTotals?.ENTERTAINMENT) || 0);
   const total = f + s + t + e;
   const sav = encodeURIComponent(savingsRate);
+  const cleanName = rawName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "USER";
+  const city = encodeURIComponent(userProfile?.city || userProfile?.college || "Nagpur");
+  const uid = encodeURIComponent(userProfile?.userId || userProfile?.id || "");
 
-  const query = `name=${name}&spend=${total}&f=${f}&s=${s}&t=${t}&e=${e}&sav=${sav}`;
+  const query = `name=${name}&spend=${total}&f=${f}&s=${s}&t=${t}&e=${e}&sav=${sav}&city=${city}&uid=${uid}`;
   const link = `https://finsight.ai/compare?${query}`;
-  const code = `FS-${Math.abs(total)}-${name.slice(0, 3).toUpperCase()}`;
+  const appLink = `finsight://compare?${query}`;
+  const code = `FS-${Math.abs(total)}-${cleanName}`;
 
-  const shareText = `📊 Compare spending with ${decodeURIComponent(name)} on FinSight-AI!
-Monthly Spend: ₹${total.toLocaleString("en-IN")} • Savings Rate: ${decodeURIComponent(sav)}
-Tap below to compare your 4-category budget head-to-head:
-${link}`;
+  const shareText = `📊 Compare spending head-to-head with ${rawName} on FinSight-AI!
+💰 Monthly Discretionary Spend: ₹${total.toLocaleString("en-IN")} • Savings Rate: ${decodeURIComponent(sav)}
+🔑 Compare Code: ${code}
+
+Tap below to compare your 4-category budget:
+${link}
+
+(Or open inside FinSight app: ${appLink})`;
 
   return {
     link,
+    appLink,
     code,
     shareText,
     total,
@@ -345,40 +355,114 @@ ${link}`;
 }
 
 /**
- * Parses a FinSight compare link or code into a structured peer object.
+ * Parses a FinSight compare link, deep link, code, or peer identifier into a structured peer object.
  */
-export function parseCompareLink(linkOrCode) {
+export function parseCompareLink(linkOrCode, availablePeers = []) {
   if (!linkOrCode || typeof linkOrCode !== "string") return null;
+  const input = linkOrCode.trim();
 
   try {
-    if (linkOrCode.includes("?")) {
-      const queryString = linkOrCode.split("?")[1];
+    // 1. Direct match against known peers by name, email, or user ID
+    if (Array.isArray(availablePeers) && availablePeers.length > 0) {
+      const match = availablePeers.find((p) => {
+        const pName = (p.name || "").toLowerCase();
+        const pEmail = (p.email || "").toLowerCase();
+        const pId = String(p.userId || p.id || "").toLowerCase();
+        const search = input.toLowerCase();
+        return (
+          pName === search ||
+          pEmail === search ||
+          pId === search ||
+          (search.length >= 3 && pName.includes(search))
+        );
+      });
+      if (match) return match;
+    }
+
+    // 2. URL containing query parameters (web URL, deep link, or pasted message)
+    if (input.includes("?")) {
+      // Extract the query portion even if surrounded by other message text
+      const urlPart = input.match(/[a-zA-Z0-9+.-]+:\/\/[^\s]+|\?[^\s]+/);
+      const querySource = urlPart ? urlPart[0] : input;
+      const queryString = querySource.includes("?") ? querySource.split("?")[1].split(/\s/)[0] : querySource;
       const params = new URLSearchParams(queryString);
-      const name = params.get("name") || "FinSight Friend";
+
+      const rawName = params.get("name");
+      let name = "FinSight Friend";
+      if (rawName) {
+        try {
+          name = decodeURIComponent(rawName);
+        } catch {
+          name = rawName;
+        }
+      }
       const spend = Number(params.get("spend")) || 0;
       const f = Number(params.get("f")) || Math.round(spend * 0.45);
       const s = Number(params.get("s")) || Math.round(spend * 0.25);
       const t = Number(params.get("t")) || Math.round(spend * 0.15);
       const e = Number(params.get("e")) || Math.round(spend * 0.15);
       const sav = params.get("sav") || "50%";
+      const city = params.get("city") || "Verified City Peer";
 
       return {
         id: `friend_${Date.now()}`,
-        name: decodeURIComponent(name),
+        name,
         avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80",
-        college: "FinSight Friend • Shared Link",
+        college: `${city} • Shared Link`,
         monthlySpend: spend || f + s + t + e,
-        savingsRate: decodeURIComponent(sav),
-        keyHabit: "Direct compare link invited friend",
+        savingsRate: sav,
+        keyHabit: "Direct compare link invited peer",
+        categories: { FOOD: f, SHOPPING: s, TRAVEL: t, ENTERTAINMENT: e },
+      };
+    }
+
+    // 3. Short code format: FS-4500-AAR or FS-4500 or FS4500
+    const codeMatch = input.match(/^FS-?(\d+)-?([A-Za-z0-9_-]*)/i);
+    if (codeMatch) {
+      const spend = parseInt(codeMatch[1], 10);
+      const tag = codeMatch[2] ? codeMatch[2].toUpperCase() : "FRIEND";
+      const f = Math.round(spend * 0.45);
+      const s = Math.round(spend * 0.25);
+      const t = Math.round(spend * 0.15);
+      const e = Math.round(spend * 0.15);
+
+      return {
+        id: `friend_code_${Date.now()}`,
+        name: `Friend (${tag})`,
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80",
+        college: "FinSight Peer • Code Invite",
+        monthlySpend: spend,
+        savingsRate: "55%",
+        keyHabit: "FinSight Invite Code Battle",
+        categories: { FOOD: f, SHOPPING: s, TRAVEL: t, ENTERTAINMENT: e },
+      };
+    }
+
+    // 4. Raw numeric budget amount (e.g. "4500" or "₹4500")
+    const cleanNum = input.replace(/[^0-9]/g, "");
+    if (cleanNum.length >= 2 && cleanNum.length <= 8) {
+      const spend = parseInt(cleanNum, 10);
+      const f = Math.round(spend * 0.45);
+      const s = Math.round(spend * 0.25);
+      const t = Math.round(spend * 0.15);
+      const e = Math.round(spend * 0.15);
+
+      return {
+        id: `friend_custom_${Date.now()}`,
+        name: `Custom Peer (₹${spend.toLocaleString("en-IN")})`,
+        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
+        college: "Custom Budget Target",
+        monthlySpend: spend,
+        savingsRate: "50%",
+        keyHabit: "Custom head-to-head budget target",
         categories: { FOOD: f, SHOPPING: s, TRAVEL: t, ENTERTAINMENT: e },
       };
     }
   } catch {
-    // URL parsing fallback
+    // Parsing fallback
   }
 
-  // Fallback to sample friend invite if code matches or unparsed
-  return SAMPLE_FRIEND_INVITES[0];
+  return null;
 }
 
 /**

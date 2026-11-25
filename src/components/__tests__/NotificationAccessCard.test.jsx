@@ -17,7 +17,7 @@ describe('NotificationAccessCard', () => {
       expect(screen.getByText('⚡ Real-Time UPI Tracking')).toBeTruthy();
       expect(screen.getByText('1-Tap Setup')).toBeTruthy();
       expect(screen.getByTestId('notification-access-button')).toBeTruthy();
-      expect(screen.getByTestId('test-simulate-button')).toBeTruthy();
+      expect(screen.getByTestId('restricted-settings-help-button')).toBeTruthy();
     });
   });
 
@@ -42,7 +42,7 @@ describe('NotificationAccessCard', () => {
     await waitFor(() => {
       expect(screen.getByText('🟢 Real-Time UPI Tracking Active')).toBeTruthy();
       expect(screen.getByText('LIVE')).toBeTruthy();
-      expect(screen.getByTestId('test-simulate-button')).toBeTruthy();
+      expect(screen.getByTestId('scan-active-notifications-button')).toBeTruthy();
     });
   });
 

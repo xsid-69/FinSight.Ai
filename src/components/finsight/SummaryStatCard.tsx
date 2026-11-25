@@ -25,7 +25,7 @@ export function SummaryStatCard({ stat, width = 236 }: SummaryStatCardProps) {
     <YStack
       width={width}
       height={128}
-      marginRight={14}
+      marginRight={16}
       backgroundColor="$backgroundStrong"
       borderRadius="$lg"
       borderWidth={1}
@@ -42,14 +42,14 @@ export function SummaryStatCard({ stat, width = 236 }: SummaryStatCardProps) {
       </Text>
 
       {stat.isCount ? (
-        <Text fontSize={26} fontWeight="800" color="$navy" letterSpacing={-0.6}>
+        <Text fontSize={26} fontWeight="800" color="$navy" letterSpacing={-0.6} fontVariant={["tabular-nums"]}>
           {stat.value}
         </Text>
       ) : (
         <Money amount={stat.value} currency={stat.currency} size={22} weight="800" />
       )}
 
-      <XStack alignItems="center" gap={5}>
+      <XStack alignItems="center" gap={8}>
         <View
           width={18}
           height={18}

@@ -11,6 +11,8 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { Check, MapPin, Briefcase, Sparkles, X, ChevronRight } from "lucide-react-native";
+import { useAuth } from "../../context/AuthContext";
+import { syncUserProfileDemographics } from "../../services/cohortService";
 
 export const DEMOGRAPHICS_STORAGE_KEY = "finsight.user_demographics_v1";
 export const PROMPT_DISMISSED_KEY = "finsight.demographics_prompt_dismissed_v1";
@@ -38,6 +40,7 @@ const BUDGETS = [
  * @param {{ onCompleted?: () => void }} [props]
  */
 export function DemographicPromptModal({ onCompleted } = {}) {
+  const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [selectedCity, setSelectedCity] = useState("nagpur");
   const [selectedRole, setSelectedRole] = useState("student");
@@ -96,6 +99,9 @@ export function DemographicPromptModal({ onCompleted } = {}) {
     try {
       await AsyncStorage.setItem(DEMOGRAPHICS_STORAGE_KEY, JSON.stringify(payload));
       await AsyncStorage.setItem(PROMPT_DISMISSED_KEY, "true");
+      if (user?.uid) {
+        await syncUserProfileDemographics(user.uid, payload);
+      }
     } catch {}
 
     setVisible(false);

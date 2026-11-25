@@ -38,10 +38,14 @@ import {
   palette,
   redGradient,
 } from "../../constants/colors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../context/AuthContext";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import type { FinancialInsights, PrivateTransaction } from "../../types/transactions";
 import { useOptionalHomePagerCoordinator } from "./HomePagerCoordinator";
+import { subscribeToCohortLeaderboard } from "../../services/cohortService";
+import { COHORT_BENCHMARKS } from "../../analytics/kdeEngine";
+import { DEMOGRAPHICS_STORAGE_KEY } from "../../components/finsight/DemographicPromptModal";
 
 const PAGE_H = 20;
 const DOCK_CLEARANCE = 108;
@@ -316,6 +320,49 @@ export function OverviewContent({
   const twoColumnActions = width >= 390;
   const transactionCount = insights?.transactionCount ?? transactions.length;
   const hasSummary = Boolean(insights && transactionCount > 0);
+
+  // Cohort Benchmark Live Ranking
+  const [cohortKey, setCohortKey] = React.useState("nagpur_students");
+  const [cohortData, setCohortData] = React.useState({
+    top5Leaderboard: [],
+    allRankedPeers: [],
+    userRank: 1,
+    isTop5: true,
+    totalPeersCount: 1,
+    loaded: false,
+  });
+
+  const cohortBenchmarksMap = COHORT_BENCHMARKS as Record<
+    string,
+    (typeof COHORT_BENCHMARKS)[keyof typeof COHORT_BENCHMARKS]
+  >;
+
+  React.useEffect(() => {
+    AsyncStorage.getItem(DEMOGRAPHICS_STORAGE_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed?.cohortKey && cohortBenchmarksMap[parsed.cohortKey]) {
+          setCohortKey(parsed.cohortKey);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  React.useEffect(() => {
+    const unsubscribe = subscribeToCohortLeaderboard(
+      cohortKey,
+      user?.uid,
+      (data: any) => {
+        setCohortData(data);
+      },
+    );
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [cohortKey, user?.uid]);
+
+  const activeCohort = cohortBenchmarksMap[cohortKey] || COHORT_BENCHMARKS.nagpur_students;
   const summaryState: SummaryState = loading
     ? "loading"
     : error
@@ -847,12 +894,18 @@ export function OverviewContent({
                 </XStack>
                 <View
                   borderRadius={999}
-                  backgroundColor="$orangeSoft"
+                  backgroundColor={cohortData.userRank === 1 ? "$orangeSoft" : "$surfaceAlt"}
                   paddingHorizontal={9}
                   paddingVertical={3.5}
                 >
-                  <Text fontSize={11} fontWeight="800" color="$orangeDeep">
-                    Top 22% Saver
+                  <Text
+                    fontSize={11}
+                    fontWeight="800"
+                    color={cohortData.userRank === 1 ? "$orangeDeep" : "$secondary"}
+                  >
+                    {transactionCount > 0
+                      ? `Rank #${cohortData.userRank || 1} Saver`
+                      : "Starting Fresh · Unranked"}
                   </Text>
                 </View>
               </XStack>
@@ -860,10 +913,12 @@ export function OverviewContent({
               <XStack alignItems="center" justifyContent="space-between">
                 <YStack gap={2} flex={1}>
                   <Text fontSize={15} fontWeight="800" color="$charcoal">
-                    Nagpur College Students Benchmark
+                    {activeCohort.name} Benchmark
                   </Text>
                   <Text fontSize={12} color="$secondary">
-                    Review your 4-category score and top money handler habits
+                    {cohortData.totalPeersCount > 1
+                      ? `Ranked with ${cohortData.totalPeersCount} real cohort peers in real time`
+                      : "Tap to review your 4-category KDE score and financial mirror"}
                   </Text>
                 </YStack>
                 <View

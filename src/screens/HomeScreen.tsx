@@ -35,6 +35,7 @@ import type {
   SavedStatement,
   SavedStatementDetail,
 } from "../types/transactions";
+import { syncUserTransactionsToCohort } from "../services/cohortService";
 import { HomePager } from "./home/HomePager";
 import { isMainTab, useHomePagerCoordinator } from "./home/HomePagerCoordinator";
 import { OverviewContent } from "./home/OverviewContent";
@@ -101,7 +102,7 @@ function isInsightsView(value: unknown): value is InsightsView {
 }
 
 export function HomeScreen({ navigation, route }: { navigation?: any; route?: any }) {
-  const { logout, user } = useAuth();
+  const { logout, user, profile } = useAuth();
   const coordinator = useHomePagerCoordinator();
   const {
     committedIndex,
@@ -703,6 +704,12 @@ export function HomeScreen({ navigation, route }: { navigation?: any; route?: an
     () => buildFinancialInsights(csvTransactions) as FinancialInsights,
     [csvTransactions],
   );
+
+  // Sync real transactions to Firestore cohort_profiles for live peer ranking
+  useEffect(() => {
+    if (!user?.uid) return;
+    void syncUserTransactionsToCohort(user, allTransactions, undefined, profile);
+  }, [user, allTransactions, profile]);
 
   return (
     <FinSightShell

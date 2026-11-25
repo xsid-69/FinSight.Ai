@@ -104,21 +104,72 @@ function profileName(user, fullName) {
   );
 }
 
-async function synchronizeUserProfile(user, authProvider, fullName) {
+export async function synchronizeUserProfile(user, authProvider = "EMAIL", fullName) {
+  if (!user?.uid || !db) return null;
   const profileRef = doc(db, "users", user.uid);
 
   try {
     const snapshot = await getDoc(profileRef);
+    const existing = snapshot.exists() ? snapshot.data() : {};
+
     const profile = {
       uid: user.uid,
       email: user.email || null,
-      fullName: profileName(user, fullName),
+      fullName: profileName(user, fullName || existing?.fullName),
       authProvider,
       updatedAt: serverTimestamp(),
     };
 
     if (!snapshot.exists()) profile.createdAt = serverTimestamp();
     await setDoc(profileRef, profile, { merge: true });
+
+    // Seed/merge into cohort_profiles for real-time peer ranking
+    const cohortRef = doc(db, "cohort_profiles", user.uid);
+    const cohortId = existing?.cohortId || "nagpur_students";
+    const city = existing?.city || "Nagpur";
+    const college = existing?.college || `${city}, MH`;
+    const monthlySpend = Number(existing?.monthlySpend) || 0;
+    const categories = existing?.categories || {
+      FOOD: 0,
+      SHOPPING: 0,
+      TRAVEL: 0,
+      ENTERTAINMENT: 0,
+    };
+    const savingsRate = existing?.savingsRate || "50%";
+    const percentile = Number(existing?.percentile) || 0;
+    const hasRealTransactions = Boolean(
+      existing?.hasRealTransactions && monthlySpend > 0,
+    );
+    const badge =
+      existing?.badge ||
+      (monthlySpend > 0 ? "Disciplined Saver" : "Starting Fresh");
+    const keyHabit =
+      existing?.keyHabit ||
+      (monthlySpend > 0
+        ? "Active FinSight Tracker"
+        : "New account starting fresh");
+
+    const cohortPayload = {
+      userId: user.uid,
+      id: user.uid,
+      name: profile.fullName,
+      avatar: user.photoURL || null,
+      city,
+      cohortId,
+      college,
+      monthlySpend,
+      categories,
+      savingsRate,
+      percentile,
+      badge,
+      keyHabit,
+      hasRealTransactions,
+      updatedAt: serverTimestamp(),
+      lastActive: new Date().toISOString(),
+    };
+
+    await setDoc(cohortRef, cohortPayload, { merge: true });
+
     return profile;
   } catch (error) {
     throw new AuthServiceError(

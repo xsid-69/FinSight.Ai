@@ -187,9 +187,10 @@ service cloud.firestore {
         && data.netCashFlow <= 1000000000000000;
     }
 
-    // Each user has full access ONLY to their own profile and transactions
+    // Private user profile data: strictly owner-only read/write
     match /users/{userId} {
-      allow read, create, update: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId);
       allow delete: if false;
 
       match /transactions/{transactionId} {
@@ -209,7 +210,12 @@ service cloud.firestore {
       }
 
       match /sms_transactions/{transactionId} {
-        allow read, write, delete: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && (
+            !request.resource.data.keys().hasAny(['sanitizedDescription'])
+            || hasPrivacySafeDescription(request.resource.data.sanitizedDescription)
+          );
       }
 
       match /statements/{statementId} {
@@ -245,15 +251,21 @@ service cloud.firestore {
         }
       }
 
-      // Allow owner read and write to all other nested user documents/subcollections
-      match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+      // Explicit subcollections only; deny arbitrary unvalidated nested paths.
     }
 
     // Allow all authenticated users to read shared cohort baseline benchmarks
     match /cohort_benchmarks/{document=**} {
       allow read: if request.auth != null;
+    }
+
+    // Public cohort ranking profiles for live peer benchmarking and head-to-head comparison
+    // Email and raw PII are strictly forbidden on public cohort documents.
+    match /cohort_profiles/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if isOwner(userId)
+        && !request.resource.data.keys().hasAny(['email']);
+      allow delete: if isOwner(userId);
     }
 
     match /{document=**} {

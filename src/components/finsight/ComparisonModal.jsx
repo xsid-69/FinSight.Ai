@@ -126,14 +126,22 @@ export function ComparisonModal({
 
               {/* Peer Side */}
               <View style={styles.competitorSide}>
-                <Image source={{ uri: peer.avatar }} style={styles.competitorAvatar} />
+                {peer.avatar ? (
+                  <Image source={{ uri: peer.avatar }} style={styles.competitorAvatar} />
+                ) : (
+                  <View style={[styles.competitorAvatar, styles.defaultAvatar, { backgroundColor: "#F79E1B" }]}>
+                    <Text style={styles.defaultAvatarText}>
+                      {(peer.name || "P").slice(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
                 <Text style={styles.competitorName} numberOfLines={1}>
-                  {peer.name}
+                  {peer.name || "Peer"}
                 </Text>
                 <Text style={[styles.competitorSpend, { color: "#F79E1B" }]}>
                   {formatCurrency(comparison.peerTotal)}
                 </Text>
-                <Text style={styles.competitorSub}>{peer.savingsRate} saved</Text>
+                <Text style={styles.competitorSub}>{peer.savingsRate || "50%"} saved</Text>
               </View>
             </View>
 

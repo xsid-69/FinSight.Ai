@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -37,12 +38,16 @@ import {
 
 import {
   COHORT_BENCHMARKS,
-  COHORT_LEADERBOARDS,
   STRICT_CATEGORIES,
   aggregateCategoryTotals,
   calculateCohortMetrics,
 } from "../analytics/kdeEngine";
-import { computeDynamicLeaderboard } from "../data/dummyPeers";
+import {
+  computeRealPeerLeaderboard,
+  publishUserCohortProfile,
+  subscribeToCohortLeaderboard,
+} from "../services/cohortService";
+import { parseCompareLink } from "../data/dummyPeers";
 import { ComparisonModal } from "../components/finsight/ComparisonModal";
 import { CompareLinkModal } from "../components/finsight/CompareLinkModal";
 import { FinSightShell } from "../components/finsight/FinSightShell";
@@ -123,7 +128,7 @@ function formatCurrency(amount) {
 }
 
 export function CohortScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
 
@@ -134,6 +139,20 @@ export function CohortScreen({ navigation }) {
   const [hasRealTransactions, setHasRealTransactions] = useState(false);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [cheeredUsers, setCheeredUsers] = useState({});
+  const [savedDemographics, setSavedDemographics] = useState(null);
+
+  // Live real-time cohort peers data from Firestore
+  const [cohortPeersData, setCohortPeersData] = useState({
+    top5Leaderboard: [],
+    allRankedPeers: [],
+    userRank: 1,
+    isTop5: true,
+    gapToTop5: 0,
+    fifthPlace: null,
+    totalPeersCount: 1,
+    activeAvatars: [],
+    loaded: false,
+  });
 
   // Comparison Modal State
   const [comparisonModalVisible, setComparisonModalVisible] = useState(false);
@@ -148,6 +167,7 @@ export function CohortScreen({ navigation }) {
       .then((raw) => {
         if (!raw) return;
         const parsed = JSON.parse(raw);
+        setSavedDemographics(parsed);
         if (parsed?.cohortKey && COHORT_BENCHMARKS[parsed.cohortKey]) {
           setSelectedCohortId(parsed.cohortKey);
         }
@@ -213,8 +233,6 @@ export function CohortScreen({ navigation }) {
     COHORT_BENCHMARKS[selectedCohortId] || COHORT_BENCHMARKS.nagpur_students;
   const cohortMedia =
     COHORT_MEDIA[selectedCohortId] || COHORT_MEDIA.nagpur_students;
-  const cohortLeaderboard =
-    COHORT_LEADERBOARDS[selectedCohortId] || COHORT_LEADERBOARDS.nagpur_students;
 
   // Compute KDE percentiles, stance, and strategies in <5ms
   const metrics = useMemo(() => {
@@ -241,10 +259,73 @@ export function CohortScreen({ navigation }) {
     return rawMetrics;
   }, [userCategoryTotals, activeCohort, hasRealTransactions]);
 
+  // Subscribe to real Firestore cohort peers in real time
+  useEffect(() => {
+    const unsubscribe = subscribeToCohortLeaderboard(
+      selectedCohortId,
+      user?.uid,
+      (rankingData) => {
+        setCohortPeersData(rankingData);
+      },
+      (error) => {
+        console.warn("[CohortScreen] Error subscribing to cohort peers:", error);
+      },
+    );
+
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [selectedCohortId, user?.uid]);
+
+  // Publish/sync user's live profile to Firestore whenever transactions, spend, or demographics change
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    void publishUserCohortProfile(user, {
+      userCategoryTotals,
+      metrics,
+      demographics: {
+        cohortKey: selectedCohortId,
+        city: savedDemographics?.cityName || savedDemographics?.city || activeCohort.name,
+        college: savedDemographics?.roleLabel || savedDemographics?.role || cohortMedia.locationBadge,
+      },
+      profile,
+    });
+  }, [user, profile, userCategoryTotals, metrics, selectedCohortId, activeCohort.name, savedDemographics, cohortMedia.locationBadge]);
+
+  // Handle incoming compare deep links (e.g. finsight://compare?... or https://finsight.ai/compare?...)
+  useEffect(() => {
+    const handleUrl = (url) => {
+      if (!url || typeof url !== "string") return;
+      if (url.includes("compare")) {
+        const peers = cohortPeersData.allRankedPeers || [];
+        const peer = parseCompareLink(url, peers);
+        if (peer) {
+          setSelectedPeerForComparison(peer);
+          setComparisonModalVisible(true);
+        }
+      }
+    };
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleUrl(url);
+      })
+      .catch(() => undefined);
+
+    const subscription = Linking.addEventListener("url", (event) => {
+      handleUrl(event?.url);
+    });
+
+    return () => {
+      subscription?.remove?.();
+    };
+  }, [cohortPeersData.allRankedPeers]);
+
   // Dynamically calculate the real user's ranking in the cohort and build strict Top 5
   const dynamicLeaderboard = useMemo(() => {
     const userDisplayName =
-      user?.displayName || (user?.email ? user.email.split("@")[0] : "You");
+      profile?.fullName || user?.displayName || user?.fullName || (user?.email ? user.email.split("@")[0] : "You");
     const realUserData = {
       name: userDisplayName,
       avatar: user?.photoURL || null,
@@ -255,12 +336,19 @@ export function CohortScreen({ navigation }) {
           : metrics.stance.type === "BALANCED"
             ? "54%"
             : "28%",
-      location: cohortMedia.locationBadge,
+      location: savedDemographics?.roleLabel || cohortMedia.locationBadge,
       keyHabit: "FinSight verified statement tracking",
       categories: userCategoryTotals,
+      hasRealTransactions,
     };
-    return computeDynamicLeaderboard(activeCohort, cohortLeaderboard, realUserData);
-  }, [activeCohort, cohortLeaderboard, metrics, user, cohortMedia, userCategoryTotals]);
+
+    const peerPool =
+      cohortPeersData.allRankedPeers && cohortPeersData.allRankedPeers.length > 0
+        ? cohortPeersData.allRankedPeers
+        : cohortPeersData.top5Leaderboard;
+
+    return computeRealPeerLeaderboard(peerPool || [], user?.uid, realUserData);
+  }, [cohortPeersData, metrics, user, profile, cohortMedia, userCategoryTotals, savedDemographics, hasRealTransactions]);
 
   const handleSelectCohort = useCallback((cohortId) => {
     void Haptics.selectionAsync();
@@ -469,16 +557,25 @@ export function CohortScreen({ navigation }) {
 
               <View style={styles.cohortHeroBottomRow}>
                 <View style={styles.avatarStack}>
-                  {PEER_AVATARS.map((uri, idx) => (
-                    <Image
-                      key={idx}
-                      source={{ uri }}
-                      style={[styles.peerAvatar, { marginLeft: idx === 0 ? 0 : -8 }]}
-                    />
-                  ))}
+                  {dynamicLeaderboard.activeAvatars && dynamicLeaderboard.activeAvatars.length > 0 ? (
+                    dynamicLeaderboard.activeAvatars.map((uri, idx) => (
+                      <Image
+                        key={idx}
+                        source={{ uri }}
+                        style={[styles.peerAvatar, { marginLeft: idx === 0 ? 0 : -8 }]}
+                      />
+                    ))
+                  ) : (
+                    <View style={[styles.peerAvatar, styles.userInitialsAvatar, { backgroundColor: "#EB001B" }]}>
+                      <Text style={styles.userInitialsText}>
+                        {userDisplayName.slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.peerAvatarBadge}>
                     <Text style={styles.peerAvatarCount}>
-                      {cohortMedia.peersCount}
+                      {dynamicLeaderboard.totalPeersCount}{" "}
+                      {dynamicLeaderboard.totalPeersCount === 1 ? "active user" : "active users"}
                     </Text>
                   </View>
                 </View>
@@ -493,12 +590,12 @@ export function CohortScreen({ navigation }) {
             </View>
           </Pressable>
 
-          {/* Notice for new users starting from scratch */}
+          {/* Live benchmark prompt for new accounts */}
           {!hasRealTransactions && (
             <View style={styles.demoBanner} testID="cohort-demo-banner">
               <Sparkles size={14} color="#D97706" />
               <Text style={styles.demoBannerText}>
-                Start from scratch: No dummy data loaded. Import your bank statement or record transactions to calculate your live standing.
+                Live Financial Mirror: Import your bank statement or record transactions to activate your real-time peer percentile ranking.
               </Text>
             </View>
           )}
@@ -519,6 +616,13 @@ export function CohortScreen({ navigation }) {
                 testID="cohort-hero-card"
                 accessibilityRole="summary"
               >
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=720&q=80",
+                  }}
+                  style={[StyleSheet.absoluteFillObject, { opacity: 0.12, borderRadius: 24 }]}
+                  resizeMode="cover"
+                />
                 <View style={styles.heroGlowCircle} />
 
                 <View style={styles.heroHeaderRow}>
@@ -695,7 +799,14 @@ export function CohortScreen({ navigation }) {
               </View>
 
               {/* Head-to-Head Comparison Teaser & Share Card */}
-              <View style={styles.battleTeaserCard}>
+              <View style={[styles.battleTeaserCard, { overflow: "hidden" }]}>
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=600&q=80",
+                  }}
+                  style={[StyleSheet.absoluteFillObject, { opacity: 0.06, borderRadius: 20 }]}
+                  resizeMode="cover"
+                />
                 <View style={styles.battleTeaserLeft}>
                   <View style={styles.battleIconBox}>
                     <Swords size={18} color="#EB001B" />
@@ -797,7 +908,14 @@ export function CohortScreen({ navigation }) {
               style={styles.leaderboardContainer}
             >
               {/* Leaderboard Header Banner */}
-              <View style={styles.leaderboardHero}>
+              <View style={[styles.leaderboardHero, { overflow: "hidden" }]}>
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=720&q=80",
+                  }}
+                  style={[StyleSheet.absoluteFillObject, { opacity: 0.08, borderRadius: 20 }]}
+                  resizeMode="cover"
+                />
                 <Crown size={22} color="#F79E1B" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.leaderboardTitle}>Top Savers in {activeCohort.shortName}</Text>
@@ -868,13 +986,21 @@ export function CohortScreen({ navigation }) {
                   const isUser = ranker.isCurrentUser;
 
                   return (
-                    <View
+                    <Pressable
                       key={ranker.id}
-                      style={[
+                      style={({ pressed }) => [
                         styles.rankerCard,
                         isUser && styles.rankerCardCurrentUser,
+                        pressed && !isUser && styles.pressedScale,
                       ]}
                       testID={isUser ? "cohort-ranker-current-user" : `cohort-ranker-${ranker.id}`}
+                      onPress={() => {
+                        if (!isUser) {
+                          handleOpenComparison(ranker);
+                        }
+                      }}
+                      accessibilityRole={isUser ? undefined : "button"}
+                      accessibilityLabel={isUser ? "Your ranking card" : `View ${ranker.name}'s profile and compare`}
                     >
                       <View style={styles.rankerLeft}>
                         <View style={styles.medalCircle}>
@@ -966,10 +1092,24 @@ export function CohortScreen({ navigation }) {
                           )}
                         </View>
                       </View>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
+
+              {dynamicLeaderboard.top5Leaderboard.length <= 1 && (
+                <View style={styles.singlePeerCard}>
+                  <Sparkles size={16} color="#F79E1B" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.singlePeerTitle}>
+                      You are currently #1 in {activeCohort.shortName}!
+                    </Text>
+                    <Text style={styles.singlePeerSub}>
+                      As soon as other real users log in with their accounts in this city, they will appear here in real-time.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Bottom Compare Link Invitation Footer */}
               <View style={styles.compareLinkBottomCard}>
@@ -1085,6 +1225,7 @@ export function CohortScreen({ navigation }) {
           onClose={() => setCompareLinkModalVisible(false)}
           userName={userDisplayName}
           userCategoryTotals={userCategoryTotals}
+          availablePeers={dynamicLeaderboard.allRankedPeers.filter((p) => !p.isCurrentUser)}
           onLaunchComparison={(peer) => {
             setSelectedPeerForComparison(peer);
             setComparisonModalVisible(true);
@@ -2701,5 +2842,27 @@ const styles = StyleSheet.create({
   pressedScale: {
     transform: [{ scale: 0.98 }],
     opacity: 0.88,
+  },
+  singlePeerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(247, 158, 27, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(247, 158, 27, 0.25)",
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+  },
+  singlePeerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#D97706",
+    marginBottom: 2,
+  },
+  singlePeerSub: {
+    fontSize: 11.5,
+    color: "#625E59",
+    lineHeight: 16,
   },
 });

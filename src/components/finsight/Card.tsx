@@ -42,7 +42,7 @@ export function Card({ children, variant = "surface", ...rest }: CardProps) {
     <YStack
       borderRadius="$card"
       borderWidth={1}
-      padding={18}
+      padding={20}
       {...VARIANT_PROPS[variant]}
       {...rest}
     >

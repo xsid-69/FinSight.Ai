@@ -18,6 +18,7 @@ import {
   loginWithGoogle,
   logoutUser,
   signUpWithEmail,
+  synchronizeUserProfile,
 } from "../services/authService";
 
 const AuthContext = createContext(/** @type {any} */ (null));
@@ -43,6 +44,11 @@ export function AuthProvider({ children }) {
           await AsyncStorage.setItem('@finsight_active_user_id', nextUser.uid);
         } catch (_) {}
         try {
+          // Synchronize profile and seed cohort_profiles for live multi-device peer ranking
+          await synchronizeUserProfile(
+            nextUser,
+            nextUser.providerData?.[0]?.providerId || "PERSISTED",
+          );
           const nextProfile = await getUserProfile(nextUser.uid);
           if (active) setProfile(nextProfile);
         } catch (profileError) {

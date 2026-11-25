@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { MotiView } from "moti";
 import {
   Check,
@@ -44,6 +45,7 @@ export function CompareLinkModal({
   userName = "You",
   userCategoryTotals,
   onLaunchComparison,
+  availablePeers = [],
   reducedMotion = false,
 }) {
   const [activeTab, setActiveTab] = useState("share"); // "share" | "friend"
@@ -68,27 +70,34 @@ export function CompareLinkModal({
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (Clipboard?.setStringAsync) {
+        await Clipboard.setStringAsync(comparePayload.link);
+      }
+    } catch {
+      // Fallback if clipboard native not available
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleCompareInputLink = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const peer = parseCompareLink(inputLink.trim());
+    const peer = parseCompareLink(inputLink.trim(), availablePeers);
     if (peer) {
       onClose();
       onLaunchComparison(peer);
     } else {
       Alert.alert(
-        "Invalid Link",
-        "Please enter a valid FinSight comparison URL or test code.",
+        "Invalid Link or Code",
+        "Please enter a valid FinSight comparison URL, code (e.g. FS-4500-USER), or friend's name.",
       );
     }
   };
 
-  const handleSelectSampleFriend = (friend) => {
+  const handleSelectPeer = (friend) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
     onLaunchComparison(friend);
@@ -272,52 +281,71 @@ export function CompareLinkModal({
                   </Pressable>
                 </View>
 
-                {/* Sample Friends for Instant Testing */}
+                {/* Real Cohort Peers Section */}
                 <View style={styles.sampleSection}>
                   <View style={styles.sampleHeaderRow}>
                     <Sparkles size={14} color="#F79E1B" />
                     <Text style={styles.sampleHeaderTitle}>
-                      OR TEST COMPARISON WITH FRIENDS
+                      COMPARE WITH REAL COHORT PEERS
                     </Text>
                   </View>
                   <Text style={styles.sampleHeaderSub}>
-                    Try head-to-head ranking with friends beyond the Top 5
+                    Head-to-head financial mirror battle with verified users in your city
                   </Text>
 
-                  <View style={styles.sampleList}>
-                    {SAMPLE_FRIEND_INVITES.map((friend) => (
-                      <Pressable
-                        key={friend.id}
-                        testID={`sample-friend-${friend.id}`}
-                        style={({ pressed }) => [
-                          styles.friendCard,
-                          pressed && styles.pressedScale,
-                        ]}
-                        onPress={() => handleSelectSampleFriend(friend)}
-                      >
-                        <Image
-                          source={{ uri: friend.avatar }}
-                          style={styles.friendAvatar}
-                        />
-                        <View style={styles.friendInfo}>
-                          <Text style={styles.friendName}>{friend.name}</Text>
-                          <Text style={styles.friendSub}>{friend.college}</Text>
-                          <Text style={styles.friendHabit} numberOfLines={1}>
-                            💡 {friend.keyHabit}
-                          </Text>
-                        </View>
-                        <View style={styles.friendRight}>
-                          <Text style={styles.friendSpend}>
-                            {formatCurrency(friend.monthlySpend)}
-                          </Text>
-                          <View style={styles.battleBtnPill}>
-                            <Swords size={11} color="#EB001B" />
-                            <Text style={styles.battleBtnPillText}>Compare</Text>
+                  {(() => {
+                    const peersToDisplay =
+                      availablePeers && availablePeers.length > 0
+                        ? availablePeers
+                        : SAMPLE_FRIEND_INVITES;
+
+                    return (
+                      <View style={styles.sampleList}>
+                        {peersToDisplay.map((friend) => (
+                        <Pressable
+                          key={friend.id}
+                          testID={`sample-friend-${friend.id}`}
+                          style={({ pressed }) => [
+                            styles.friendCard,
+                            pressed && styles.pressedScale,
+                          ]}
+                          onPress={() => handleSelectPeer(friend)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Compare with ${friend.name}`}
+                        >
+                          {friend.avatar ? (
+                            <Image
+                              source={{ uri: friend.avatar }}
+                              style={styles.friendAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.friendAvatar, styles.defaultAvatar]}>
+                              <Text style={styles.defaultAvatarText}>
+                                {(friend.name || "U").slice(0, 2).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={styles.friendInfo}>
+                            <Text style={styles.friendName}>{friend.name}</Text>
+                            <Text style={styles.friendSub}>{friend.college || "Verified Peer"}</Text>
+                            <Text style={styles.friendHabit} numberOfLines={1}>
+                              💡 {friend.keyHabit}
+                            </Text>
                           </View>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
+                          <View style={styles.friendRight}>
+                            <Text style={styles.friendSpend}>
+                              {formatCurrency(friend.monthlySpend)}
+                            </Text>
+                            <View style={styles.battleBtnPill}>
+                              <Swords size={11} color="#EB001B" />
+                              <Text style={styles.battleBtnPillText}>Compare</Text>
+                            </View>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  );
+                })()}
                 </View>
               </View>
             )}
@@ -670,6 +698,38 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
     color: "#EB001B",
+  },
+  defaultAvatar: {
+    backgroundColor: "#F79E1B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  defaultAvatarText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+  emptyPeersCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    backgroundColor: "#F8F8F6",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E3E1DC",
+    gap: 8,
+  },
+  emptyPeersTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#171717",
+    textAlign: "center",
+  },
+  emptyPeersSub: {
+    fontSize: 11.5,
+    color: "#625E59",
+    textAlign: "center",
+    lineHeight: 16,
   },
   pressedScale: {
     transform: [{ scale: 0.98 }],

@@ -19,9 +19,8 @@ const TRACKED_APPS = [
 
 export function NotificationAccessCard({ onScanComplete }) {
   const [hasPermission, setHasPermission] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [simulatedFeedback, setSimulatedFeedback] = useState('');
+  const [statusFeedback, setStatusFeedback] = useState('');
 
   const checkStatus = async () => {
     try {
@@ -97,7 +96,7 @@ export function NotificationAccessCard({ onScanComplete }) {
 
   const handleScanActiveNotifications = async () => {
     setIsScanning(true);
-    setSimulatedFeedback('');
+    setStatusFeedback('');
     try {
       let activeUserId = 'guest';
       try {
@@ -114,64 +113,17 @@ export function NotificationAccessCard({ onScanComplete }) {
         try {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (_) {}
-        setSimulatedFeedback(`⚡ Found & synced ${imported} payment notification(s) from your notification drawer!`);
+        setStatusFeedback(`⚡ Found & synced ${imported} payment alert(s) from your notification drawer!`);
       } else {
-        setSimulatedFeedback('⚡ Radar checked: No pending payment notifications found in status bar.');
+        setStatusFeedback('⚡ Radar checked: No pending payment alerts found in status bar.');
       }
-      setTimeout(() => setSimulatedFeedback(''), 5000);
+      setTimeout(() => setStatusFeedback(''), 5000);
     } catch (err) {
       console.warn('Scan active notifications error:', err);
-      setSimulatedFeedback('Could not scan notifications. Ensure permission is granted.');
-      setTimeout(() => setSimulatedFeedback(''), 4000);
+      setStatusFeedback('Could not scan notifications. Ensure permission is granted.');
+      setTimeout(() => setStatusFeedback(''), 4000);
     } finally {
       setIsScanning(false);
-    }
-  };
-
-  const handleSimulatePayment = async (customApp = 'PhonePe', amount = 150, merchant = 'Sharma Tea Stall') => {
-    setIsSimulating(true);
-    setSimulatedFeedback('');
-    try {
-      let mockNotification;
-      if (customApp === 'Super.money') {
-        mockNotification = {
-          app: 'money.super.payments',
-          title: 'Super.money',
-          text: `Paid ₹${amount} to ${merchant} on Super.money UPI`,
-        };
-      } else if (customApp === 'Google Pay') {
-        mockNotification = {
-          app: 'com.google.android.apps.nbu.paisa.user',
-          title: 'Google Pay',
-          text: `Payment of ₹${amount} to ${merchant} successful`,
-        };
-      } else {
-        mockNotification = {
-          app: 'com.phonepe.app',
-          title: 'PhonePe',
-          text: `Paid ₹${amount} to ${merchant} on PhonePe`,
-        };
-      }
-
-      const result = await processIncomingNotification(mockNotification);
-      if (result) {
-        if (typeof onScanComplete === 'function') {
-          onScanComplete(result);
-        }
-        try {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (_) {}
-        setSimulatedFeedback(`⚡ Success: ₹${amount} at ${merchant} (${customApp}) captured in live ledger!`);
-      } else {
-        setSimulatedFeedback('⚡ Duplicate payment prevented (already logged this minute).');
-      }
-      setTimeout(() => setSimulatedFeedback(''), 4500);
-    } catch (err) {
-      console.warn('Simulation error:', err);
-      setSimulatedFeedback('Simulation failed. Check storage.');
-      setTimeout(() => setSimulatedFeedback(''), 4000);
-    } finally {
-      setIsSimulating(false);
     }
   };
 
@@ -213,10 +165,10 @@ export function NotificationAccessCard({ onScanComplete }) {
         ))}
       </View>
 
-      {/* Simulated Live Feedback Alert */}
-      {simulatedFeedback ? (
+      {/* Status Feedback Alert */}
+      {statusFeedback ? (
         <View style={styles.feedbackBox}>
-          <Text style={styles.feedbackText}>{simulatedFeedback}</Text>
+          <Text style={styles.feedbackText}>{statusFeedback}</Text>
         </View>
       ) : null}
 
@@ -237,9 +189,7 @@ export function NotificationAccessCard({ onScanComplete }) {
               Enable Notification Access
             </Text>
           </Pressable>
-        ) : null}
-
-        {hasPermission ? (
+        ) : (
           <Pressable
             testID="scan-active-notifications-button"
             onPress={handleScanActiveNotifications}
@@ -247,63 +197,20 @@ export function NotificationAccessCard({ onScanComplete }) {
             accessibilityRole="button"
             accessibilityLabel="Scan Notifications Drawer"
             style={({ pressed }) => [
-              styles.scanButton,
+              styles.scanButtonActive,
               pressed && styles.buttonPressed,
             ]}
           >
             {isScanning ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.scanButtonText}>
-                🔍 Scan Drawer
+              <Text style={styles.scanButtonActiveText}>
+                🔍 Sync Pending Drawer Alerts
               </Text>
             )}
           </Pressable>
-        ) : null}
-
-        <Pressable
-          testID="test-simulate-button"
-          onPress={() => handleSimulatePayment('PhonePe', 150, 'Sharma Tea Stall')}
-          disabled={isSimulating}
-          accessibilityRole="button"
-          accessibilityLabel="Test Interception"
-          style={({ pressed }) => [
-            hasPermission ? styles.testButtonActive : styles.testButton,
-            pressed && styles.buttonPressed,
-          ]}
-        >
-          {isSimulating ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.testButtonText}>
-              ⚡ Test (₹150)
-            </Text>
-          )}
-        </Pressable>
+        )}
       </View>
-
-      {/* Multi-app instant test triggers when active */}
-      {hasPermission ? (
-        <View style={styles.multiSimRow}>
-          <Text style={styles.quickTestLabel}>Quick Ingestion Tests:</Text>
-          <View style={styles.multiSimButtons}>
-            <Pressable
-              onPress={() => handleSimulatePayment('Super.money', 350, 'Chai Point')}
-              disabled={isSimulating}
-              style={({ pressed }) => [styles.pillSimButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.pillSimText}>+ Super.money ₹350</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleSimulatePayment('Google Pay', 1200, 'Zomato')}
-              disabled={isSimulating}
-              style={({ pressed }) => [styles.pillSimButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.pillSimText}>+ Google Pay ₹1,200</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
 
       {!hasPermission ? (
         <Pressable
@@ -500,59 +407,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanButtonText: {
-    color: '#60A5FA',
-    fontWeight: '700',
-    fontSize: 11.5,
-  },
-  testButtonActive: {
+  scanButtonActive: {
     flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(59, 130, 246, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.38)',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(59, 130, 246, 0.45)',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  testButtonText: {
-    color: '#FFFFFF',
+  scanButtonActiveText: {
+    color: '#60A5FA',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: -0.1,
+  },
+  scanButtonText: {
+    color: '#60A5FA',
     fontWeight: '700',
     fontSize: 11.5,
-  },
-  multiSimRow: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 0.8,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  quickTestLabel: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  multiSimButtons: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  pillSimButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 8,
-  },
-  pillSimText: {
-    color: '#F59E0B',
-    fontSize: 10.5,
-    fontWeight: '700',
   },
   buttonPressed: {
     opacity: 0.85,

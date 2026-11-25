@@ -106,6 +106,10 @@ jest.mock("firebase/firestore", () => ({
   setDoc: jest.fn().mockResolvedValue(undefined),
   getDocs: jest.fn().mockResolvedValue({ docs: [] }),
   onSnapshot: jest.fn(() => jest.fn()),
+  query: jest.fn((col) => col),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  serverTimestamp: jest.fn(() => new Date().toISOString()),
   writeBatch: jest.fn(() => ({
     set: jest.fn(),
     commit: jest.fn().mockResolvedValue(undefined),

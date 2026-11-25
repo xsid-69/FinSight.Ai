@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, Image, StyleSheet } from "react-native";
 import { XStack, YStack, Text, View } from "tamagui";
 import { AlertCircle, FileUp, KeyRound, ShieldCheck } from "@tamagui/lucide-icons";
 import * as Haptics from "expo-haptics";
@@ -142,6 +142,13 @@ export function StatementUploadCard({
         accessibilityHint="Select one CSV file exported by your bank"
         accessibilityState={{ busy, disabled: busy }}
       >
+        <Image
+          source={{
+            uri: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80",
+          }}
+          style={[StyleSheet.absoluteFill, { opacity: 0.08 }]}
+          resizeMode="cover"
+        />
         <View
           position="absolute"
           width={154}

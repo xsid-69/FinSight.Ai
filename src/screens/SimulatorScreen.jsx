@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  Image,
   Keyboard,
   Platform,
   Pressable,
@@ -479,7 +480,14 @@ function VerdictCard({ report }) {
   const backgroundColor = status === "not_affordable" ? C.red : C.navy;
 
   return (
-    <View style={[styles.verdictCard, { backgroundColor }]}>
+    <View style={[styles.verdictCard, { backgroundColor, overflow: "hidden" }]}>
+      <Image
+        source={{
+          uri: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80",
+        }}
+        style={[StyleSheet.absoluteFillObject, { opacity: 0.1 }]}
+        resizeMode="cover"
+      />
       <View style={styles.verdictHeader}>
         <View style={styles.verdictIcon}>
           {affordable ? (

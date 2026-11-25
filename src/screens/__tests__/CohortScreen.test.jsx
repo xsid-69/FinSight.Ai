@@ -7,6 +7,8 @@ import { BottomTabDock } from "../../navigation/BottomTabNavigator";
 
 const mockUseAuth = jest.fn();
 const mockSubscribeToPrivateTransactions = jest.fn();
+const mockSubscribeToCohortLeaderboard = jest.fn();
+const mockPublishUserCohortProfile = jest.fn();
 
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
@@ -46,6 +48,15 @@ jest.mock("../../services/transactionService", () => ({
   subscribeToPrivateTransactions: (...args) =>
     mockSubscribeToPrivateTransactions(...args),
 }));
+
+jest.mock("../../services/cohortService", () => {
+  const actual = jest.requireActual("../../services/cohortService");
+  return {
+    ...actual,
+    publishUserCohortProfile: (...args) => mockPublishUserCohortProfile(...args),
+    subscribeToCohortLeaderboard: (...args) => mockSubscribeToCohortLeaderboard(...args),
+  };
+});
 
 jest.mock("expo-haptics", () => ({
   ImpactFeedbackStyle: { Light: "Light" },
@@ -104,15 +115,46 @@ jest.mock("lucide-react-native", () => {
 
 describe("CohortScreen (Feature 04: Cohort Financial Mirror)", () => {
   let mockUnsubscribe;
+  let mockCohortUnsubscribe;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUnsubscribe = jest.fn();
+    mockCohortUnsubscribe = jest.fn();
     mockUseAuth.mockReturnValue({
       user: { uid: "user_test_123", email: "student@nagpur.edu" },
     });
     mockSubscribeToPrivateTransactions.mockImplementation(() => {
       return mockUnsubscribe;
+    });
+    mockSubscribeToCohortLeaderboard.mockImplementation((cohortId, currentUserId, onUpdate) => {
+      onUpdate({
+        top5Leaderboard: [
+          {
+            id: "user_test_123",
+            userId: "user_test_123",
+            rank: 1,
+            name: "You",
+            avatar: null,
+            monthlySpend: 0,
+            savingsRate: "50%",
+            college: "Nagpur, MH",
+            badge: "Disciplined Saver",
+            keyHabit: "FinSight verified statement tracking",
+            categories: { FOOD: 0, SHOPPING: 0, TRAVEL: 0, ENTERTAINMENT: 0 },
+            isCurrentUser: true,
+          },
+        ],
+        allRankedPeers: [],
+        userRank: 1,
+        isTop5: true,
+        gapToTop5: 0,
+        fifthPlace: null,
+        totalPeersCount: 1,
+        activeAvatars: [],
+        loaded: true,
+      });
+      return mockCohortUnsubscribe;
     });
   });
 
@@ -335,6 +377,50 @@ describe("CohortScreen (Feature 04: Cohort Financial Mirror)", () => {
   });
 
   test("opens head-to-head comparison ranking modal when compare button is pressed", async () => {
+    mockSubscribeToCohortLeaderboard.mockImplementation((cohortId, currentUserId, onUpdate) => {
+      onUpdate({
+        top5Leaderboard: [
+          {
+            id: "user_rohit_456",
+            userId: "user_rohit_456",
+            rank: 1,
+            name: "Rohit Sharma",
+            avatar: null,
+            monthlySpend: 2150,
+            savingsRate: "75%",
+            college: "VNIT Nagpur",
+            badge: "Top Disciplined Saver",
+            keyHabit: "Bulk meal prep & university transit pass",
+            categories: { FOOD: 1200, SHOPPING: 350, TRAVEL: 400, ENTERTAINMENT: 200 },
+            isCurrentUser: false,
+          },
+          {
+            id: "user_test_123",
+            userId: "user_test_123",
+            rank: 2,
+            name: "You",
+            avatar: null,
+            monthlySpend: 4200,
+            savingsRate: "54%",
+            college: "Nagpur, MH",
+            badge: "Budget Master",
+            keyHabit: "FinSight verified statement tracking",
+            categories: { FOOD: 2000, SHOPPING: 1000, TRAVEL: 700, ENTERTAINMENT: 500 },
+            isCurrentUser: true,
+          },
+        ],
+        allRankedPeers: [],
+        userRank: 2,
+        isTop5: true,
+        gapToTop5: 0,
+        fifthPlace: null,
+        totalPeersCount: 2,
+        activeAvatars: [],
+        loaded: true,
+      });
+      return mockUnsubscribe;
+    });
+
     const screen = await render(<CohortScreen />);
 
     // Switch to Top Savers tab
@@ -345,10 +431,10 @@ describe("CohortScreen (Feature 04: Cohort Financial Mirror)", () => {
 
     // Verify leaderboard peers rendered
     expect(screen.getByText("Top Savers in Nagpur Students")).toBeTruthy();
-    expect(screen.getByText("Aarav Sharma")).toBeTruthy();
+    expect(screen.getByText("Rohit Sharma")).toBeTruthy();
 
     // Press compare button for rank 1 peer
-    const compareBtn = screen.getByTestId("compare-btn-rank_1");
+    const compareBtn = screen.getByTestId("compare-btn-user_rohit_456");
     await act(async () => {
       fireEvent.press(compareBtn);
     });
@@ -361,7 +447,7 @@ describe("CohortScreen (Feature 04: Cohort Financial Mirror)", () => {
     expect(screen.getByText("4-CATEGORY HEAD-TO-HEAD")).toBeTruthy();
 
     // Cheer peer inside comparison modal
-    const cheerBtn = screen.getByRole("button", { name: "Cheer for Aarav Sharma" });
+    const cheerBtn = screen.getByRole("button", { name: "Cheer for Rohit Sharma" });
     await act(async () => {
       fireEvent.press(cheerBtn);
     });
@@ -373,6 +459,106 @@ describe("CohortScreen (Feature 04: Cohort Financial Mirror)", () => {
       fireEvent.press(doneBtn);
     });
     expect(screen.queryByTestId("comparison-modal-content")).toBeNull();
+  });
+
+  test("dynamically updates rankings in real-time when user spend increases or peers change", async () => {
+    let capturedCohortCallback;
+    mockSubscribeToCohortLeaderboard.mockImplementation((cohortId, currentUserId, onUpdate) => {
+      capturedCohortCallback = onUpdate;
+      onUpdate({
+        top5Leaderboard: [
+          {
+            id: "user_test_123",
+            userId: "user_test_123",
+            rank: 1,
+            name: "You",
+            avatar: null,
+            monthlySpend: 1500,
+            savingsRate: "78%",
+            college: "Nagpur, MH",
+            badge: "Top Disciplined Saver",
+            categories: { FOOD: 800, SHOPPING: 300, TRAVEL: 200, ENTERTAINMENT: 200 },
+            isCurrentUser: true,
+          },
+          {
+            id: "user_aditi_789",
+            userId: "user_aditi_789",
+            rank: 2,
+            name: "Aditi Rao",
+            avatar: null,
+            monthlySpend: 2400,
+            savingsRate: "70%",
+            college: "RCOEM Nagpur",
+            badge: "Disciplined Saver",
+            categories: { FOOD: 1200, SHOPPING: 500, TRAVEL: 400, ENTERTAINMENT: 300 },
+            isCurrentUser: false,
+          },
+        ],
+        userRank: 1,
+        isTop5: true,
+        gapToTop5: 0,
+        totalPeersCount: 2,
+        activeAvatars: [],
+        loaded: true,
+      });
+      return mockUnsubscribe;
+    });
+
+    const screen = await render(<CohortScreen />);
+
+    // Switch to Top Savers tab
+    const leaderboardTab = screen.getByRole("button", { name: "Top Savers Leaderboard View" });
+    await act(async () => {
+      fireEvent.press(leaderboardTab);
+    });
+
+    expect(screen.getByText(/Rank #1 in Nagpur Students/)).toBeTruthy();
+
+    // Now emit real-time ranking change where user spend increased and user drops to Rank #2
+    await act(async () => {
+      capturedCohortCallback({
+        top5Leaderboard: [
+          {
+            id: "user_aditi_789",
+            userId: "user_aditi_789",
+            rank: 1,
+            name: "Aditi Rao",
+            avatar: null,
+            monthlySpend: 2400,
+            savingsRate: "70%",
+            college: "RCOEM Nagpur",
+            badge: "Top Disciplined Saver",
+            categories: { FOOD: 1200, SHOPPING: 500, TRAVEL: 400, ENTERTAINMENT: 300 },
+            isCurrentUser: false,
+          },
+          {
+            id: "user_test_123",
+            userId: "user_test_123",
+            rank: 2,
+            name: "You",
+            avatar: null,
+            monthlySpend: 3600,
+            savingsRate: "55%",
+            college: "Nagpur, MH",
+            badge: "Budget Master",
+            categories: { FOOD: 2000, SHOPPING: 600, TRAVEL: 500, ENTERTAINMENT: 500 },
+            isCurrentUser: true,
+          },
+        ],
+        userRank: 2,
+        isTop5: true,
+        gapToTop5: 0,
+        totalPeersCount: 2,
+        activeAvatars: [],
+        loaded: true,
+      });
+    });
+
+    // Verification: Aditi Rao is now Rank 1, User is now Rank 2
+    await waitFor(() => {
+      expect(screen.getByText(/Rank #2 in Nagpur Students/)).toBeTruthy();
+      expect(screen.getByText("Aditi Rao")).toBeTruthy();
+    });
   });
 });
 

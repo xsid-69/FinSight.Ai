@@ -39,6 +39,7 @@ import { IconSquare, type LucideIcon } from "../components/IconSquare";
 import { useAuth } from "../context/AuthContext";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { brandColors } from "../theme/mastercard";
+import { syncUserProfileDemographics } from "../services/cohortService";
 
 const PAGE_H = 20;
 const PREFERENCES_KEY = "finsight.preferences.v1";
@@ -173,6 +174,7 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
 }
 
 function DemographicsSection() {
+  const { user } = useAuth();
   const [selectedCity, setSelectedCity] = useState("nagpur");
   const [selectedRole, setSelectedRole] = useState("student");
   const [selectedBudget, setSelectedBudget] = useState("₹10,000 – ₹25,000/mo");
@@ -211,6 +213,9 @@ function DemographicsSection() {
 
     try {
       await AsyncStorage.setItem(DEMOGRAPHICS_STORAGE_KEY, JSON.stringify(dataToSave));
+      if (user?.uid) {
+        await syncUserProfileDemographics(user.uid, dataToSave);
+      }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch {

@@ -377,13 +377,12 @@ export function InteractiveBannerCarousel({
       title: "Cohort Financial Mirror",
       subtitle: "Benchmark your monthly savings against city peer percentiles",
       actionLabel: "Compare Cohort",
-      badge: "Top 12% In City",
+      badge: "Live Peer Ranking",
       colors: brandGradients.warm,
       graphicType: "cohort-mirror",
       onPress: () => {
         void triggerButtonHaptic();
-        if (onOpenInsights) onOpenInsights();
-        else navigation?.navigate?.("Home", { tab: "Insights", insightsView: "analysis" });
+        navigation?.navigate?.("CohortScreen");
       },
     },
   ];

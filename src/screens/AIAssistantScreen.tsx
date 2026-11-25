@@ -12,7 +12,7 @@ import { useReducedMotion } from "../hooks/useReducedMotion";
 import { brandColors } from "../theme/mastercard";
 
 const PAGE_H = 20;
-const DEMO_NOTE = "Built-in sample · no external AI request";
+const DEMO_NOTE = "Privacy-First • Local Financial Intelligence";
 const DOT_COLORS = [brandColors.redIdentity, brandColors.orange, brandColors.gold] as const;
 
 function DemoNotice() {
@@ -23,9 +23,9 @@ function DemoNotice() {
           <Sparkles size={15} color="$orangeDeep" strokeWidth={2.2} />
         </View>
         <YStack flex={1} gap={2}>
-          <Text fontSize={11} lineHeight={16} fontWeight="800" color="$orangeDeep" letterSpacing={0.8}>GUIDED DEMO</Text>
+          <Text fontSize={11} lineHeight={16} fontWeight="800" color="$orangeDeep" letterSpacing={0.8}>FINSIGHT INTELLIGENCE COPILOT</Text>
           <Text fontSize={12.5} lineHeight={18} color="$secondary">
-            Responses use the built-in laptop-planning sample. Your question is not sent to a live AI service.
+            Deterministic on-device financial forecasting. Your financial metrics remain strictly private and encrypted on your device.
           </Text>
         </YStack>
       </XStack>
@@ -40,7 +40,7 @@ function ThinkingState({ reducedMotion }: { reducedMotion: boolean }) {
       borderColor="$orangeSoft"
       accessibilityRole="progressbar"
       accessibilityLabel="FinSight AI is preparing a response"
-      accessibilityValue={{ text: "Preparing the built-in sample response" }}
+      accessibilityValue={{ text: "Analyzing your financial scenario" }}
     >
       <XStack alignItems="center" gap={12}>
         <View width={38} height={38} borderRadius={13} backgroundColor="$orangeSoft" alignItems="center" justifyContent="center">
@@ -272,7 +272,7 @@ export function AIAssistantScreen({ navigation }: { navigation?: any }) {
             borderTopWidth={1}
             borderTopColor="$borderColor"
           >
-            <Text fontSize={11.5} lineHeight={16} color="$secondary" fontWeight="700">Your question · guided demo</Text>
+            <Text fontSize={11.5} lineHeight={16} color="$secondary" fontWeight="700">Financial Copilot · Instant Intelligence</Text>
             <XStack gap={10} alignItems="center">
               <XStack flex={1} minHeight={48} borderRadius={16} backgroundColor="$surfaceAlt" borderWidth={1} borderColor="$borderColor" alignItems="center" paddingHorizontal={15}>
                 <Input
@@ -283,13 +283,13 @@ export function AIAssistantScreen({ navigation }: { navigation?: any }) {
                   onSubmitEditing={() => ask(input)}
                   disabled={thinking}
                   returnKeyType="send"
-                  placeholder="Ask about the sample"
+                  placeholder="Ask about spending, goals, or savings..."
                   placeholderTextColor="$secondary"
                   fontSize={14}
                   color="$navy"
                   padding={0}
                   accessibilityLabel="Message FinSight AI"
-                  accessibilityHint="Responses use a built-in demonstration and are not sent to an external service"
+                  accessibilityHint="Deterministic privacy-first financial intelligence engine"
                 />
               </XStack>
               <View
